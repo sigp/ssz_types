@@ -1,7 +1,7 @@
 //! Serialize `VariableList<u8, N>` as 0x-prefixed hex string.
 use crate::VariableList;
-use serde_utils::hex::{self, PrefixedHexVisitor};
 use serde::{Deserializer, Serializer};
+use serde_utils::hex::{self, PrefixedHexVisitor};
 use typenum::Unsigned;
 
 pub fn serialize<S, N>(bytes: &VariableList<u8, N>, serializer: S) -> Result<S::Ok, S::Error>

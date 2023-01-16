@@ -1,6 +1,6 @@
 use crate::FixedVector;
-use serde_utils::hex::{self, PrefixedHexVisitor};
 use serde::{Deserializer, Serializer};
+use serde_utils::hex::{self, PrefixedHexVisitor};
 use typenum::Unsigned;
 
 pub fn serialize<S, U>(bytes: &FixedVector<u8, U>, serializer: S) -> Result<S::Ok, S::Error>
