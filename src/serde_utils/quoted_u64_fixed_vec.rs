@@ -4,63 +4,14 @@
 //!
 //! Quotes can be optional during decoding. If `N` does not equal the length deserialization will fail.
 
-use crate::serde_utils::quoted_u64_var_list::deserialize_max;
-use crate::FixedVector;
-use serde::ser::SerializeSeq;
-use serde::{Deserializer, Serializer};
-use serde_utils::quoted_u64_vec::QuotedIntWrapper;
-use std::marker::PhantomData;
-use typenum::Unsigned;
-
-pub struct QuotedIntFixedVecVisitor<N> {
-    _phantom: PhantomData<N>,
-}
-
-impl<'a, N> serde::de::Visitor<'a> for QuotedIntFixedVecVisitor<N>
-where
-    N: Unsigned,
-{
-    type Value = FixedVector<u64, N>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(formatter, "a list of quoted or unquoted integers")
-    }
-
-    fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'a>,
-    {
-        let vec = deserialize_max(seq, N::to_usize())?;
-        let fix: FixedVector<u64, N> = FixedVector::new(vec)
-            .map_err(|e| serde::de::Error::custom(format!("FixedVector: {:?}", e)))?;
-        Ok(fix)
-    }
-}
-
-pub fn serialize<S>(value: &[u64], serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let mut seq = serializer.serialize_seq(Some(value.len()))?;
-    for &int in value {
-        seq.serialize_element(&QuotedIntWrapper { int })?;
-    }
-    seq.end()
-}
-
-pub fn deserialize<'de, D, N>(deserializer: D) -> Result<FixedVector<u64, N>, D::Error>
-where
-    D: Deserializer<'de>,
-    N: Unsigned,
-{
-    deserializer.deserialize_any(QuotedIntFixedVecVisitor {
-        _phantom: PhantomData,
-    })
-}
+// The (de)serialisation functions for variable lists are now sufficiently general that we can
+// implement fixed vector (de)serialisation in terms of them.
+pub use crate::serde_utils::quoted_u64_var_list::deserialize;
+pub use crate::serde_utils::quoted_u64_var_list::serialize;
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use crate::FixedVector;
     use serde_derive::{Deserialize, Serialize};
     use typenum::U4;
 

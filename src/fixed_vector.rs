@@ -159,6 +159,15 @@ impl<T, N: Unsigned> DerefMut for FixedVector<T, N> {
     }
 }
 
+impl<'a, T, N: Unsigned> IntoIterator for &'a FixedVector<T, N> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 impl<T, N: Unsigned> tree_hash::TreeHash for FixedVector<T, N>
 where
     T: tree_hash::TreeHash,
@@ -217,6 +226,35 @@ where
 
             encoder.finalize();
         }
+    }
+}
+
+impl<T, N: Unsigned> ssz::TryFromIter<T> for FixedVector<T, N> {
+    type Error = Error;
+
+    fn try_from_iter<I>(value: I) -> Result<Self, Self::Error>
+    where
+        I: IntoIterator<Item = T>,
+    {
+        let n = N::to_usize();
+        let iter = value.into_iter();
+
+        let (_, opt_max_len) = iter.size_hint();
+        let mut vec =
+            Vec::with_capacity(opt_max_len.map_or(n, |max_len| std::cmp::min(n, max_len)));
+
+        for item in iter {
+            // Bail out as soon as the length tries to exceed the limit. This guards against
+            // memory denial-of-service attacks.
+            if vec.len() >= n {
+                return Err(Error::OutOfBounds {
+                    i: vec.len(),
+                    len: n,
+                });
+            }
+            vec.push(item);
+        }
+        Self::new(vec)
     }
 }
 

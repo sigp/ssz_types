@@ -220,6 +220,28 @@ where
     }
 }
 
+impl<T, N: Unsigned> ssz::TryFromIter<T> for VariableList<T, N> {
+    type Error = Error;
+
+    fn try_from_iter<I>(value: I) -> Result<Self, Self::Error>
+    where
+        I: IntoIterator<Item = T>,
+    {
+        let n = N::to_usize();
+        let iter = value.into_iter();
+
+        // Pre-allocate up to `N` elements based on the iterator size hint.
+        let (_, opt_max_len) = iter.size_hint();
+        let mut l = Self::new(Vec::with_capacity(
+            opt_max_len.map_or(n, |max_len| std::cmp::min(n, max_len)),
+        ))?;
+        for item in iter {
+            l.push(item)?;
+        }
+        Ok(l)
+    }
+}
+
 impl<T, N> ssz::Decode for VariableList<T, N>
 where
     T: ssz::Decode,
