@@ -55,6 +55,14 @@ pub struct VariableList<T, N> {
     _phantom: PhantomData<N>,
 }
 
+/// Maximum number of elements to pre-allocate in `try_from_iter`.
+///
+/// Some variable lists have *very long* maximum lengths such that we can't actually fit them
+/// in memory. This value is set to 128K with the expectation that any list with a large maximum
+/// length (N) will contain at least a few thousand small values. i.e. we're targeting an
+/// allocation around the 1MiB to 10MiB mark.
+const MAX_ELEMENTS_TO_PRE_ALLOCATE: usize = 128 * (1 << 10);
+
 impl<T, N: Unsigned> VariableList<T, N> {
     /// Returns `Some` if the given `vec` equals the fixed length of `Self`. Otherwise returns
     /// `None`.
@@ -237,12 +245,13 @@ impl<T, N: Unsigned> ssz::TryFromIter<T> for VariableList<T, N> {
         I: IntoIterator<Item = T>,
     {
         let n = N::to_usize();
+        let clamped_n = std::cmp::min(MAX_ELEMENTS_TO_PRE_ALLOCATE, n);
         let iter = value.into_iter();
 
         // Pre-allocate up to `N` elements based on the iterator size hint.
         let (_, opt_max_len) = iter.size_hint();
         let mut l = Self::new(Vec::with_capacity(
-            opt_max_len.map_or(n, |max_len| std::cmp::min(n, max_len)),
+            opt_max_len.map_or(clamped_n, |max_len| std::cmp::min(clamped_n, max_len)),
         ))?;
         for item in iter {
             l.push(item)?;
@@ -495,5 +504,48 @@ mod test {
                 i
             );
         }
+    }
+
+    #[test]
+    fn large_list_pre_allocation() {
+        use std::iter;
+        use typenum::U1099511627776;
+
+        // Iterator that hints the upper bound on its length as `hint`.
+        struct WonkyIterator<I> {
+            hint: usize,
+            iter: I,
+        }
+
+        impl<I> Iterator for WonkyIterator<I>
+        where
+            I: Iterator,
+        {
+            type Item = I::Item;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                self.iter.next()
+            }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (0, Some(self.hint))
+            }
+        }
+
+        // Very large list type that would not fit in memory.
+        type N = U1099511627776;
+        type List = VariableList<u64, N>;
+
+        let iter = iter::repeat(1).take(5);
+        let wonky_iter = WonkyIterator {
+            hint: N::to_usize() / 2,
+            iter: iter.clone(),
+        };
+
+        // Don't explode.
+        assert_eq!(
+            List::try_from_iter(iter).unwrap(),
+            List::try_from_iter(wonky_iter).unwrap()
+        );
     }
 }
