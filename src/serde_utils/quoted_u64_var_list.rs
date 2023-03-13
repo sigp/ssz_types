@@ -1,89 +1,69 @@
-//! Formats `VariableList<u64,N>` using quotes.
+//! Formats `VariableList<u64,N>` and similar types using quotes.
 //!
 //! E.g., `VariableList::from(vec![0, 1, 2])` serializes as `["0", "1", "2"]`.
 //!
 //! Quotes can be optional during decoding. If the length of the `Vec` is greater than `N`, deserialization fails.
 
-use crate::VariableList;
+use itertools::process_results;
 use serde::ser::SerializeSeq;
-use serde::{Deserializer, Serializer};
+use serde::{de::Error, Deserializer, Serializer};
 use serde_utils::quoted_u64_vec::QuotedIntWrapper;
+use ssz::TryFromIter;
+use std::iter;
 use std::marker::PhantomData;
-use typenum::Unsigned;
 
-pub struct QuotedIntVarListVisitor<N> {
-    _phantom: PhantomData<N>,
+pub struct QuotedIntVarListVisitor<C> {
+    _phantom: PhantomData<C>,
 }
 
-impl<'a, N> serde::de::Visitor<'a> for QuotedIntVarListVisitor<N>
+impl<'a, C> serde::de::Visitor<'a> for QuotedIntVarListVisitor<C>
 where
-    N: Unsigned,
+    C: TryFromIter<u64>,
 {
-    type Value = VariableList<u64, N>;
+    type Value = C;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(formatter, "a list of quoted or unquoted integers")
     }
 
-    fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'a>,
     {
-        let vec = deserialize_max(seq, N::to_usize())?;
-        let list: VariableList<u64, N> = VariableList::new(vec)
-            .map_err(|e| serde::de::Error::custom(format!("VariableList: {:?}", e)))?;
-        Ok(list)
+        process_results(iter::from_fn(|| seq.next_element().transpose()), |iter| {
+            C::try_from_iter(iter.map(|QuotedIntWrapper { int }| int))
+                .map_err(|e| A::Error::custom(format!("{e:?}")))
+        })?
     }
 }
 
-pub fn serialize<S>(value: &[u64], serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<'a, C, I, S>(value: &'a C, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
+    &'a C: IntoIterator<IntoIter = I>,
+    I: Iterator<Item = &'a u64> + ExactSizeIterator,
 {
-    let mut seq = serializer.serialize_seq(Some(value.len()))?;
-    for &int in value {
+    let iter = value.into_iter();
+    let mut seq = serializer.serialize_seq(Some(iter.len()))?;
+    for &int in iter {
         seq.serialize_element(&QuotedIntWrapper { int })?;
     }
     seq.end()
 }
 
-pub fn deserialize<'de, D, N>(deserializer: D) -> Result<VariableList<u64, N>, D::Error>
+pub fn deserialize<'de, D, C>(deserializer: D) -> Result<C, D::Error>
 where
     D: Deserializer<'de>,
-    N: Unsigned,
+    C: TryFromIter<u64>,
 {
     deserializer.deserialize_any(QuotedIntVarListVisitor {
         _phantom: PhantomData,
     })
 }
 
-/// Returns a `Vec` of no more than `max_items` length.
-pub(crate) fn deserialize_max<'a, A>(mut seq: A, max_items: usize) -> Result<Vec<u64>, A::Error>
-where
-    A: serde::de::SeqAccess<'a>,
-{
-    let mut vec = vec![];
-    let mut counter = 0;
-
-    while let Some(val) = seq.next_element()? {
-        let val: QuotedIntWrapper = val;
-        counter += 1;
-        if counter > max_items {
-            return Err(serde::de::Error::custom(format!(
-                "Deserialization failed. Length cannot be greater than {}.",
-                max_items
-            )));
-        }
-
-        vec.push(val.int);
-    }
-
-    Ok(vec)
-}
-
 #[cfg(test)]
 mod test {
-    use super::*;
+    use crate::VariableList;
     use serde_derive::{Deserialize, Serialize};
     use typenum::U4;
 
