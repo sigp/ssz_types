@@ -7,6 +7,7 @@ use serde::ser::{Serialize, Serializer};
 use serde_utils::hex::{encode as hex_encode, PrefixedHexVisitor};
 use smallvec::{smallvec, SmallVec, ToSmallVec};
 use ssz::{Decode, Encode};
+use std::cmp::Ordering;
 use tree_hash::Hash256;
 use typenum::Unsigned;
 
@@ -235,6 +236,34 @@ impl<N: Unsigned + Clone> Bitfield<Variable<N>> {
         }
         result
     }
+
+    /// Returns `true` if `self` is a subset of `other` and `false` otherwise.
+    pub fn is_subset(&self, other: &Self) -> bool {
+        match self.len().cmp(&other.len()) {
+            Ordering::Equal => {
+                let intersection = self.intersection(other);
+                intersection == *self
+            }
+            Ordering::Greater => {
+                let mut result =
+                    Self::with_capacity(self.len()).expect("max len always less than N");
+                for i in 0..other.bytes.len() {
+                    result.bytes[i] = other.bytes.get(i).copied().unwrap_or(0);
+                }
+                let intersection = self.intersection(&result);
+                intersection == *self
+            }
+            Ordering::Less => {
+                let mut result =
+                    Self::with_capacity(other.len()).expect("max len always less than N");
+                for i in 0..self.bytes.len() {
+                    result.bytes[i] = self.bytes.get(i).copied().unwrap_or(0);
+                }
+                let intersection = result.intersection(other);
+                intersection == result
+            }
+        }
+    }
 }
 
 impl<N: Unsigned + Clone> Bitfield<Fixed<N>> {
@@ -303,6 +332,12 @@ impl<N: Unsigned + Clone> Bitfield<Fixed<N>> {
                 self.bytes.get(i).copied().unwrap_or(0) | other.bytes.get(i).copied().unwrap_or(0);
         }
         result
+    }
+
+    /// Returns `true` if `self` is a subset of `other` and `false` otherwise.
+    pub fn is_subset(&self, other: &Self) -> bool {
+        let intersection = self.intersection(other);
+        intersection == *self
     }
 }
 
