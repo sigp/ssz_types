@@ -239,28 +239,7 @@ impl<N: Unsigned + Clone> Bitfield<Variable<N>> {
 
     /// Returns `true` if `self` is a subset of `other` and `false` otherwise.
     pub fn is_subset(&self, other: &Self) -> bool {
-        match self.len().cmp(&other.len()) {
-            Ordering::Equal | Ordering::Less => {
-                let intersection = self.intersection(other);
-                intersection == *self
-            }
-            // We handle the case where self.len() is greater than other.len() differently to account
-            // for BitLists where the higher bytes are all 0.
-            // Consider the case where
-            // `a = 0b1011 0b0010 0b0000`
-            // `b = 0b1011 0b0010`
-            // Here, `a` is a subset of `b` but if we handle it similarly to the `Ordering::Equal` and `Ordering::Less` case
-            // we get `a.intersection(b) = 0b1011 0b0010 ≠ a` and `a.is_subset(&b)` would return `false`.
-            Ordering::Greater => {
-                let mut result =
-                    Self::with_capacity(self.len()).expect("max len always less than N");
-                for i in 0..other.bytes.len() {
-                    result.bytes[i] = other.bytes.get(i).copied().unwrap_or(0);
-                }
-                let intersection = self.intersection(&result);
-                intersection == *self
-            }
-        }
+        self.difference(other).is_zero()
     }
 }
 
@@ -334,8 +313,7 @@ impl<N: Unsigned + Clone> Bitfield<Fixed<N>> {
 
     /// Returns `true` if `self` is a subset of `other` and `false` otherwise.
     pub fn is_subset(&self, other: &Self) -> bool {
-        let intersection = self.intersection(other);
-        intersection == *self
+        self.difference(other).is_zero()
     }
 }
 
@@ -811,7 +789,7 @@ mod bitvector {
         // a vector is always a subset of itself
         assert!(a.is_subset(&a));
         assert!(b.is_subset(&b));
-        assert!(b.is_subset(&c));
+        assert!(c.is_subset(&c));
 
         assert!(a.is_subset(&b));
         assert!(a.is_subset(&c));
@@ -1279,7 +1257,7 @@ mod bitlist {
         // a vector is always a subset of itself
         assert!(a.is_subset(&a));
         assert!(b.is_subset(&b));
-        assert!(b.is_subset(&c));
+        assert!(c.is_subset(&c));
 
         assert!(a.is_subset(&b));
         assert!(a.is_subset(&c));
