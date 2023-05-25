@@ -7,7 +7,6 @@ use serde::ser::{Serialize, Serializer};
 use serde_utils::hex::{encode as hex_encode, PrefixedHexVisitor};
 use smallvec::{smallvec, SmallVec, ToSmallVec};
 use ssz::{Decode, Encode};
-use std::cmp::Ordering;
 use tree_hash::Hash256;
 use typenum::Unsigned;
 
