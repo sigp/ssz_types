@@ -7,7 +7,6 @@ use serde::ser::{Serialize, Serializer};
 use serde_utils::hex::{encode as hex_encode, PrefixedHexVisitor};
 use smallvec::{smallvec, SmallVec, ToSmallVec};
 use ssz::{Decode, Encode};
-use std::cmp::Ordering;
 use tree_hash::Hash256;
 use typenum::Unsigned;
 
@@ -239,30 +238,8 @@ impl<N: Unsigned + Clone> Bitfield<Variable<N>> {
 
     /// Returns `true` if `self` is a subset of `other` and `false` otherwise.
     pub fn is_subset(&self, other: &Self) -> bool {
-        match self.len().cmp(&other.len()) {
-            Ordering::Equal => {
-                let intersection = self.intersection(other);
-                intersection == *self
-            }
-            Ordering::Greater => {
-                let mut result =
-                    Self::with_capacity(self.len()).expect("max len always less than N");
-                for i in 0..other.bytes.len() {
-                    result.bytes[i] = other.bytes.get(i).copied().unwrap_or(0);
-                }
-                let intersection = self.intersection(&result);
-                intersection == *self
-            }
-            Ordering::Less => {
-                let mut result =
-                    Self::with_capacity(other.len()).expect("max len always less than N");
-                for i in 0..self.bytes.len() {
-                    result.bytes[i] = self.bytes.get(i).copied().unwrap_or(0);
-                }
-                let intersection = result.intersection(other);
-                intersection == result
-            }
-        }
+        let intersection = self.intersection(other);
+        intersection == *self
     }
 }
 
@@ -801,6 +778,30 @@ mod bitvector {
     }
 
     #[test]
+    fn subset() {
+        let a = BitVector16::from_raw_bytes(smallvec![0b1000, 0b0001], 16).unwrap();
+        let b = BitVector16::from_raw_bytes(smallvec![0b1100, 0b0001], 16).unwrap();
+        let c = BitVector16::from_raw_bytes(smallvec![0b1100, 0b1001], 16).unwrap();
+
+        assert_eq!(a.len(), 16);
+        assert_eq!(b.len(), 16);
+        assert_eq!(c.len(), 16);
+
+        // a vector is always a subset of itself
+        assert!(a.is_subset(&a));
+        assert!(b.is_subset(&b));
+        assert!(b.is_subset(&c));
+
+        assert!(a.is_subset(&b));
+        assert!(a.is_subset(&c));
+        assert!(b.is_subset(&c));
+
+        assert!(!b.is_subset(&a));
+        assert!(!c.is_subset(&a));
+        assert!(!c.is_subset(&b));
+    }
+
+    #[test]
     fn union() {
         let a = BitVector16::from_raw_bytes(smallvec![0b1100, 0b0001], 16).unwrap();
         let b = BitVector16::from_raw_bytes(smallvec![0b1011, 0b1001], 16).unwrap();
@@ -1242,6 +1243,42 @@ mod bitlist {
         assert_eq!(a.intersection(&a), a);
         assert_eq!(b.intersection(&b), b);
         assert_eq!(c.intersection(&c), c);
+    }
+
+    #[test]
+    fn subset() {
+        let a = BitList1024::from_raw_bytes(smallvec![0b1000, 0b0001], 16).unwrap();
+        let b = BitList1024::from_raw_bytes(smallvec![0b1100, 0b0001], 16).unwrap();
+        let c = BitList1024::from_raw_bytes(smallvec![0b1100, 0b1001], 16).unwrap();
+
+        assert_eq!(a.len(), 16);
+        assert_eq!(b.len(), 16);
+        assert_eq!(c.len(), 16);
+
+        // a vector is always a subset of itself
+        assert!(a.is_subset(&a));
+        assert!(b.is_subset(&b));
+        assert!(b.is_subset(&c));
+
+        assert!(a.is_subset(&b));
+        assert!(a.is_subset(&c));
+        assert!(b.is_subset(&c));
+
+        assert!(!b.is_subset(&a));
+        assert!(!c.is_subset(&a));
+        assert!(!c.is_subset(&b));
+
+        let d = BitList1024::from_raw_bytes(smallvec![0b1100, 0b1001, 0b1010], 24).unwrap();
+        assert!(d.is_subset(&d));
+
+        assert!(a.is_subset(&d));
+        assert!(b.is_subset(&d));
+        assert!(c.is_subset(&d));
+
+        // A bigger length bitlist cannot be a subset of a smaller length bitlist
+        assert!(!d.is_subset(&a));
+        assert!(!d.is_subset(&b));
+        assert!(!d.is_subset(&c));
     }
 
     #[test]
