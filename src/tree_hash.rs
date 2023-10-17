@@ -56,3 +56,22 @@ pub fn bitfield_bytes_tree_hash_root<N: Unsigned>(bytes: &[u8]) -> Hash256 {
         .finish()
         .expect("bitfield tree hash buffer should not exceed leaf limit")
 }
+
+/// A helper function providing common functionality for finding the Merkle root of some bytes that
+/// represent an optional value.
+pub fn optional_tree_hash_root<T: TreeHash>(option: &Option<T>) -> Hash256 {
+    let mut hasher = MerkleHasher::with_leaves(1);
+
+    match option {
+        None => (),
+        Some(val) => {
+            hasher
+                .write(val.tree_hash_root().as_bytes())
+                .expect("ssz_types optional should only contain 1 element");
+        }
+    }
+
+    hasher
+        .finish()
+        .expect("ssz_types optional should not have a remaining buffer")
+}
