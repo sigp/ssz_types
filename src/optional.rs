@@ -159,7 +159,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{VariableList, FixedVector};
+    use crate::{FixedVector, VariableList};
     use ssz::*;
     use ssz_derive::{Decode, Encode};
     use tree_hash::TreeHash;
