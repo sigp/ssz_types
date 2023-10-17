@@ -5,13 +5,14 @@ use tree_hash::Hash256;
 
 pub use typenum;
 
-/// Emulates a SSZ `Optional` (distinc from a Rust `Option`).
+/// Emulates a SSZ `Optional` (distinct from a Rust `Option`).
 ///
 /// This SSZ type is defined in EIP-6475.
 ///
 /// This struct is backed by a Rust `Option` and its behaviour is defined by the variant.
 ///
-/// If `Some`, it will serialize with a 1-byte identifying prefix with a value of 1.
+/// If `Some`, it will serialize with a 1-byte identifying prefix with a value of 1 followed by the
+/// serialized internal type.
 /// If `None`, it will serialize as `null`.
 ///
 /// `Optional` will Merklize in the following ways:
