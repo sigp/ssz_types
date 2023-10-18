@@ -159,9 +159,7 @@ where
 
 /// TODO Use a more robust `Arbitrary` impl.
 #[cfg(feature = "arbitrary")]
-impl<'a, T: arbitrary::Arbitrary<'a>> arbitrary::Arbitrary<'a>
-    for Optional<T>
-{
+impl<'a, T: arbitrary::Arbitrary<'a>> arbitrary::Arbitrary<'a> for Optional<T> {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         let option = Some(<T>::arbitrary(u).unwrap());
         Ok(Self::from(option))
