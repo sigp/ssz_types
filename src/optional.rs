@@ -55,7 +55,7 @@ pub struct Optional<T> {
     optional: Option<T>,
 }
 
-impl<T: Default> From<Option<T>> for Optional<T> {
+impl<T> From<Option<T>> for Optional<T> {
     fn from(optional: Option<T>) -> Self {
         Self { optional }
     }
