@@ -106,7 +106,7 @@ where
     T: ssz::Encode,
 {
     fn is_ssz_fixed_len() -> bool {
-        T::is_ssz_fixed_len()
+        false
     }
 
     fn ssz_fixed_len() -> usize {
