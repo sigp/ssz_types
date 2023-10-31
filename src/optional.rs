@@ -109,10 +109,6 @@ where
         false
     }
 
-    fn ssz_fixed_len() -> usize {
-        <T>::ssz_fixed_len() + 1
-    }
-
     fn ssz_bytes_len(&self) -> usize {
         match &self.optional {
             None => 0,
@@ -141,18 +137,20 @@ where
     }
 
     fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        if bytes.is_empty() {
-            Ok(Optional { optional: None })
-        } else if bytes[0] == 0x01 {
-            Ok(Optional {
-                optional: Some(T::from_ssz_bytes(&bytes[1..])?),
-            })
+        if let Some((first, rest)) = bytes.split_first() {
+            if first == &0x01 {
+                return Ok(Optional {
+                    optional: Some(T::from_ssz_bytes(&rest)?),
+                });
+            } else {
+                // An `Optional` must always contains `0x01` as the first byte.
+                // Might be worth having an explicit error variant in ssz::DecodeError.
+                return Err(ssz::DecodeError::BytesInvalid(
+                    "Missing Optional identifier byte".to_string(),
+                ));
+            }
         } else {
-            // An `Optional` must always contains `0x01` as the first byte.
-            // Might be worth having an explicit error variant in ssz::DecodeError.
-            Err(ssz::DecodeError::BytesInvalid(
-                "Missing Optional identifier byte".to_string(),
-            ))
+            Ok(Optional { optional: None })
         }
     }
 }
