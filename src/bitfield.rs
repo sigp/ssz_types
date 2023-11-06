@@ -240,6 +240,17 @@ impl<N: Unsigned + Clone> Bitfield<Variable<N>> {
     pub fn is_subset(&self, other: &Self) -> bool {
         self.difference(other).is_zero()
     }
+
+    /// Returns `true` is `self` is disjoint from `other` and `false` otherwise.
+    ///
+    /// This method is a faster alternative to `self.intersection(other).is_zero()` and does not
+    /// allocate!
+    pub fn is_disjoint(&self, other: &Self) -> bool {
+        self.bytes
+            .iter()
+            .zip(other.bytes.iter())
+            .all(|(self_byte, other_byte)| self_byte & other_byte == 0)
+    }
 }
 
 impl<N: Unsigned + Clone> Bitfield<Fixed<N>> {
@@ -391,7 +402,10 @@ impl<T: BitfieldBehaviour> Bitfield<T> {
     /// - `bytes` is not the minimal required bytes to represent a bitfield of `bit_len` bits.
     /// - `bit_len` is not a multiple of 8 and `bytes` contains set bits that are higher than, or
     /// equal to `bit_len`.
-    fn from_raw_bytes(bytes: SmallVec<[u8; SMALLVEC_LEN]>, bit_len: usize) -> Result<Self, Error> {
+    pub fn from_raw_bytes(
+        bytes: SmallVec<[u8; SMALLVEC_LEN]>,
+        bit_len: usize,
+    ) -> Result<Self, Error> {
         if bit_len == 0 {
             if bytes.len() == 1 && bytes[0] == 0 {
                 // A bitfield with `bit_len` 0 can only be represented by a single zero byte.
@@ -1241,6 +1255,44 @@ mod bitlist {
         assert_eq!(a.intersection(&a), a);
         assert_eq!(b.intersection(&b), b);
         assert_eq!(c.intersection(&c), c);
+    }
+
+    #[test]
+    fn is_disjoint() {
+        let a = BitList1024::from_raw_bytes(smallvec![0b1000, 0b0001], 16).unwrap();
+        let b = BitList1024::from_raw_bytes(smallvec![0b0100, 0b0001], 16).unwrap();
+        let c = BitList1024::from_raw_bytes(smallvec![0b0111, 0b1110], 16).unwrap();
+        let d = BitList1024::from_raw_bytes(smallvec![0b0101, 0b0001, 0b0000], 24).unwrap();
+        let e = BitList1024::from_raw_bytes(smallvec![0b0101, 0b0000, 0b1011], 24).unwrap();
+
+        assert_eq!(a.len(), 16);
+        assert_eq!(b.len(), 16);
+        assert_eq!(c.len(), 16);
+        assert_eq!(d.len(), 24);
+        assert_eq!(e.len(), 24);
+
+        // a bitfield is never disjoint from itself
+        assert!(!a.is_disjoint(&a));
+        assert!(!b.is_disjoint(&b));
+        assert!(!c.is_disjoint(&c));
+        assert!(!d.is_disjoint(&d));
+        assert!(!e.is_disjoint(&e));
+
+        // same length, not disjoint
+        assert!(!a.is_disjoint(&b));
+        assert!(!b.is_disjoint(&a));
+
+        // same length, disjoint
+        assert!(a.is_disjoint(&c));
+        assert!(c.is_disjoint(&a));
+
+        // different length, not disjoint
+        assert!(!a.is_disjoint(&d));
+        assert!(!d.is_disjoint(&a));
+
+        // different length, disjoint
+        assert!(a.is_disjoint(&e));
+        assert!(e.is_disjoint(&a));
     }
 
     #[test]

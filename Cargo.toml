@@ -25,3 +25,8 @@ itertools = "0.10.0"
 [dev-dependencies]
 serde_json = "1.0.0"
 tree_hash_derive = "0.5.0"
+criterion = "0.5"
+
+[[bench]]
+name = "bitfield"
+harness = false
