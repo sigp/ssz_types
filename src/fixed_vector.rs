@@ -406,6 +406,17 @@ mod test {
     }
 
     #[test]
+    fn iterator() {
+        let vec = vec![0, 2, 4, 6];
+        let fixed: FixedVector<u64, U4> = FixedVector::from(vec);
+
+        // test the reference version
+        assert_eq!((&fixed).into_iter().sum::<u64>(), 12);
+        // test the owned version
+        assert_eq!(fixed.into_iter().sum::<u64>(), 12);
+    }
+
+    #[test]
     fn ssz_encode() {
         let vec: FixedVector<u16, U2> = vec![0; 2].into();
         assert_eq!(vec.as_ssz_bytes(), vec![0, 0, 0, 0]);
