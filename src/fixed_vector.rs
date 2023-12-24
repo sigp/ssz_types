@@ -85,7 +85,7 @@ impl<T, N: Unsigned> FixedVector<T, N> {
     ///
     /// Exists for compatibility with `Vec`.
     pub fn len(&self) -> usize {
-        self.vec.len()
+        N::to_usize()
     }
 
     /// True if the type-level constant length of `self` is zero.
