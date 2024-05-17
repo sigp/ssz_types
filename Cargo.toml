@@ -11,8 +11,8 @@ keywords = ["ethereum"]
 categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-tree_hash = "0.5.0"
-ethereum_ssz = "0.5.0"
+tree_hash = { git = "https://github.com/macladson/tree_hash", branch = "stable-container" }
+ethereum_ssz = { git = "https://github.com/macladson/ethereum_ssz", branch = "stable-container" }
 ethereum_serde_utils = "0.5.0"
 serde = "1.0.0"
 serde_derive = "1.0.0"
@@ -24,4 +24,4 @@ itertools = "0.10.0"
 
 [dev-dependencies]
 serde_json = "1.0.0"
-tree_hash_derive = "0.5.0"
+tree_hash_derive = { git = "https://github.com/macladson/tree_hash", branch = "stable-container" }
