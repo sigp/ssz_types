@@ -168,6 +168,15 @@ impl<'a, T, N: Unsigned> IntoIterator for &'a FixedVector<T, N> {
     }
 }
 
+impl<T, N: Unsigned> IntoIterator for FixedVector<T, N> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vec.into_iter()
+    }
+}
+
 impl<T, N: Unsigned> tree_hash::TreeHash for FixedVector<T, N>
 where
     T: tree_hash::TreeHash,
@@ -394,6 +403,17 @@ mod test {
         assert_eq!(fixed.first(), Some(&0));
         assert_eq!(fixed.get(3), Some(&6));
         assert_eq!(fixed.get(4), None);
+    }
+
+    #[test]
+    fn iterator() {
+        let vec = vec![0, 2, 4, 6];
+        let fixed: FixedVector<u64, U4> = FixedVector::from(vec);
+
+        // test the reference version
+        assert_eq!((&fixed).into_iter().sum::<u64>(), 12);
+        // test the owned version
+        assert_eq!(fixed.into_iter().sum::<u64>(), 12);
     }
 
     #[test]
