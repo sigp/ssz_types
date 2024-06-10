@@ -1430,12 +1430,12 @@ mod bitlist {
         assert_eq!(bit_list.num_set_bits(), 1);
         assert_eq!(bit_list.highest_set_bit().unwrap(), 0);
 
-        let extended_bit_list = bit_list.resize::<typenum::U1024>().unwrap();
-        assert_eq!(extended_bit_list.len(), 1024);
-        assert_eq!(extended_bit_list.num_set_bits(), 1);
-        assert_eq!(extended_bit_list.highest_set_bit().unwrap(), 0);
+        let resized_bit_list = bit_list.resize::<typenum::U1024>().unwrap();
+        assert_eq!(resized_bit_list.len(), 1024);
+        assert_eq!(resized_bit_list.num_set_bits(), 1);
+        assert_eq!(resized_bit_list.highest_set_bit().unwrap(), 0);
 
         // Can't extend a BitList to a smaller BitList
-        extended_bit_list.resize::<typenum::U16>().unwrap_err();
+        resized_bit_list.resize::<typenum::U16>().unwrap_err();
     }
 }
