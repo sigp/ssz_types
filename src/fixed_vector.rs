@@ -480,25 +480,25 @@ mod test {
         let fixed: FixedVector<A, U1> = FixedVector::from(vec![a]);
         assert_eq!(
             fixed.tree_hash_root(),
-            merkle_root(a.tree_hash_root().as_bytes(), 0)
+            merkle_root(a.tree_hash_root().as_slice(), 0)
         );
 
         let fixed: FixedVector<A, U8> = FixedVector::from(vec![a; 8]);
         assert_eq!(
             fixed.tree_hash_root(),
-            merkle_root(&repeat(a.tree_hash_root().as_bytes(), 8), 0)
+            merkle_root(&repeat(a.tree_hash_root().as_slice(), 8), 0)
         );
 
         let fixed: FixedVector<A, U13> = FixedVector::from(vec![a; 13]);
         assert_eq!(
             fixed.tree_hash_root(),
-            merkle_root(&repeat(a.tree_hash_root().as_bytes(), 13), 0)
+            merkle_root(&repeat(a.tree_hash_root().as_slice(), 13), 0)
         );
 
         let fixed: FixedVector<A, U16> = FixedVector::from(vec![a; 16]);
         assert_eq!(
             fixed.tree_hash_root(),
-            merkle_root(&repeat(a.tree_hash_root().as_bytes(), 16), 0)
+            merkle_root(&repeat(a.tree_hash_root().as_slice(), 16), 0)
         );
     }
 }
