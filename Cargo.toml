@@ -11,9 +11,9 @@ keywords = ["ethereum"]
 categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-tree_hash = { git = "https://github.com/KolbyML/tree_hash.git", rev = "8aaf8bb4184148768d48e2cfbbdd0b95d1da8730" }
-ethereum_serde_utils = "0.5"
-ethereum_ssz = "0.5"
+tree_hash = { git = "https://github.com/sigp/tree_hash", branch = "alloy" }
+ethereum_serde_utils = { git = "https://github.com/sigp/ethereum_serde_utils", branch = "alloy" }
+ethereum_ssz = { git = "https://github.com/sigp/ethereum_ssz", branch = "alloy" }
 serde = "1.0.0"
 serde_derive = "1.0.0"
 typenum = "1.12.0"
