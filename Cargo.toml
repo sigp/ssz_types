@@ -24,4 +24,4 @@ itertools = "0.10.0"
 
 [dev-dependencies]
 serde_json = "1.0.0"
-tree_hash_derive = { git = "https://github.com/KolbyML/tree_hash.git", rev = "8aaf8bb4184148768d48e2cfbbdd0b95d1da8730" }
+tree_hash_derive = { git = "https://github.com/eserilev/tree_hash", branch = "alloy-deps"}
