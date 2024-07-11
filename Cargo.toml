@@ -11,7 +11,7 @@ keywords = ["ethereum"]
 categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-tree_hash = { git = "https://github.com/sigp/tree_hash", branch = "alloy" }
+tree_hash = { git = "https://github.com/eserilev/tree_hash", branch = "alloy-deps"}
 ethereum_serde_utils = { git = "https://github.com/sigp/ethereum_serde_utils", branch = "alloy" }
 ethereum_ssz = { git = "https://github.com/sigp/ethereum_ssz", branch = "alloy" }
 serde = "1.0.0"
