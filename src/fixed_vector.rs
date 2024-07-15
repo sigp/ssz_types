@@ -455,6 +455,7 @@ mod test {
     }
 
     #[derive(Clone, Copy, TreeHash, Default)]
+    #[tree_hash(struct_behaviour = "container")]
     struct A {
         a: u32,
         b: u32,

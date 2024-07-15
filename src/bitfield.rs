@@ -334,6 +334,20 @@ impl<N: Unsigned + Clone> Bitfield<Fixed<N>> {
     }
 }
 
+impl<N: Unsigned + Clone> std::fmt::Display for Bitfield<Fixed<N>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut field: String = "".to_string();
+        for i in self.iter() {
+            if i {
+                field.push('1')
+            } else {
+                field.push('0')
+            }
+        }
+        write!(f, "{field}")
+    }
+}
+
 impl<N: Unsigned + Clone> Default for Bitfield<Fixed<N>> {
     fn default() -> Self {
         Self::new()
