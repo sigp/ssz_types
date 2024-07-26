@@ -12,7 +12,7 @@ categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
 tree_hash = "0.6.0"
-ethereum_ssz = "0.5.0"
+ethereum_ssz = { git = "https://github.com/macladson/ethereum_ssz", branch = "bitvector" }
 ethereum_serde_utils = "0.5.0"
 serde = "1.0.0"
 serde_derive = "1.0.0"
