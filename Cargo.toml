@@ -12,8 +12,8 @@ categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
 tree_hash = { git = "https://github.com/eserilev/tree_hash", branch = "alloy-deps"}
-ethereum_serde_utils = { git = "https://github.com/eserilev/ethereum_serde_utils", branch = "alloy" }
-ethereum_ssz = { git = "https://github.com/eserilev/ethereum_ssz", branch = "alloy" }
+ethereum_serde_utils = "0.5"
+ethereum_ssz = "0.5"
 serde = "1.0.0"
 serde_derive = "1.0.0"
 typenum = "1.12.0"
