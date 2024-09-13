@@ -3,15 +3,16 @@ use typenum::Unsigned;
 
 /// A helper function providing common functionality between the `TreeHash` implementations for
 /// `FixedVector` and `VariableList`.
-pub fn vec_tree_hash_root<T, N>(vec: &[T]) -> Hash256
+pub fn vec_tree_hash_root<'a, T: 'a, N>(vec: &'a [T]) -> Hash256
 where
-    T: TreeHash,
+    &'a T: TreeHash,
     N: Unsigned,
 {
-    match T::tree_hash_type() {
+    match <&T>::tree_hash_type() {
         TreeHashType::Basic => {
             let mut hasher = MerkleHasher::with_leaves(
-                (N::to_usize() + T::tree_hash_packing_factor() - 1) / T::tree_hash_packing_factor(),
+                (N::to_usize() + <&T>::tree_hash_packing_factor() - 1)
+                    / <&T>::tree_hash_packing_factor(),
             );
 
             for item in vec {
