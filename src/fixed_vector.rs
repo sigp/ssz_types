@@ -177,15 +177,15 @@ impl<T, N: Unsigned> IntoIterator for FixedVector<T, N> {
     }
 }
 
-impl<T, N: Unsigned> tree_hash::TreeHash for FixedVector<T, N>
+impl<'a, T, N: Unsigned> tree_hash::TreeHash for &'a FixedVector<T, N>
 where
-    T: tree_hash::TreeHash,
+    &'a T: tree_hash::TreeHash,
 {
     fn tree_hash_type() -> tree_hash::TreeHashType {
         tree_hash::TreeHashType::Vector
     }
 
-    fn tree_hash_packed_encoding(&self) -> tree_hash::PackedEncoding {
+    fn tree_hash_packed_encoding(self) -> tree_hash::PackedEncoding {
         unreachable!("Vector should never be packed.")
     }
 
@@ -193,7 +193,7 @@ where
         unreachable!("Vector should never be packed.")
     }
 
-    fn tree_hash_root(&self) -> Hash256 {
+    fn tree_hash_root(self) -> Hash256 {
         vec_tree_hash_root::<T, N>(&self.vec)
     }
 }
