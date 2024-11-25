@@ -193,15 +193,15 @@ impl<T, N: Unsigned> IntoIterator for VariableList<T, N> {
     }
 }
 
-impl<T, N: Unsigned> tree_hash::TreeHash for VariableList<T, N>
+impl<'a, T, N: Unsigned> tree_hash::TreeHash for &'a VariableList<T, N>
 where
-    T: tree_hash::TreeHash,
+    &'a T: tree_hash::TreeHash,
 {
     fn tree_hash_type() -> tree_hash::TreeHashType {
         tree_hash::TreeHashType::List
     }
 
-    fn tree_hash_packed_encoding(&self) -> tree_hash::PackedEncoding {
+    fn tree_hash_packed_encoding(self) -> tree_hash::PackedEncoding {
         unreachable!("List should never be packed.")
     }
 
@@ -209,7 +209,7 @@ where
         unreachable!("List should never be packed.")
     }
 
-    fn tree_hash_root(&self) -> Hash256 {
+    fn tree_hash_root(self) -> Hash256 {
         let root = vec_tree_hash_root::<T, N>(&self.vec);
 
         tree_hash::mix_in_length(&root, self.len())
