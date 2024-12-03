@@ -1,6 +1,5 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
-use derivative::Derivative;
 use serde_derive::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
@@ -45,12 +44,26 @@ pub use typenum;
 /// let long: FixedVector<_, typenum::U5> = FixedVector::from(base);
 /// assert_eq!(&long[..], &[1, 2, 3, 4, 0]);
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize, Derivative)]
-#[derivative(PartialEq, Eq, Hash(bound = "T: std::hash::Hash"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FixedVector<T, N> {
     vec: Vec<T>,
     _phantom: PhantomData<N>,
+}
+
+// Implement comparison functions even if T doesn't implement them (since we don't sotre T)
+impl<T: PartialEq, N> PartialEq for FixedVector<T, N> {
+    fn eq(&self, other: &Self) -> bool {
+        // T and N are already compared because other must have the same T/N
+        // We don't store values of T or N, so we don't have to compare them either.
+        self.vec == other.vec
+    }
+}
+impl<T: Eq, N> Eq for FixedVector<T, N> {}
+impl<T: std::hash::Hash, N> std::hash::Hash for FixedVector<T, N> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.vec.hash(state);
+    }
 }
 
 impl<T, N: Unsigned> FixedVector<T, N> {
