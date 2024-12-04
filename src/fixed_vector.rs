@@ -304,18 +304,19 @@ where
                 )));
             }
 
-            bytes
-                .chunks(T::ssz_fixed_len())
-                .map(|chunk| T::from_ssz_bytes(chunk))
-                .collect::<Result<Vec<T>, _>>()
-                .and_then(|vec| {
-                    Self::new(vec).map_err(|e| {
-                        ssz::DecodeError::BytesInvalid(format!(
-                            "Wrong number of FixedVector elements: {:?}",
-                            e
-                        ))
-                    })
-                })
+            let vec = bytes.chunks(T::ssz_fixed_len()).try_fold(
+                Vec::with_capacity(num_items),
+                |mut vec, chunk| {
+                    vec.push(T::from_ssz_bytes(chunk)?);
+                    Ok(vec)
+                },
+            )?;
+            Self::new(vec).map_err(|e| {
+                ssz::DecodeError::BytesInvalid(format!(
+                    "Wrong number of FixedVector elements: {:?}",
+                    e
+                ))
+            })
         } else {
             let vec = ssz::decode_list_of_variable_length_items(bytes, Some(fixed_len))?;
             Self::new(vec).map_err(|e| {
