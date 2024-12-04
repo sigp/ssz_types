@@ -1,4 +1,4 @@
-use tree_hash::{Hash256, MerkleHasher, TreeHash, TreeHashType, BYTES_PER_CHUNK};
+use tree_hash::{Hash256, MerkleHasher, TreeHash, TreeHashType};
 use typenum::Unsigned;
 
 /// A helper function providing common functionality between the `TreeHash` implementations for
@@ -38,21 +38,4 @@ where
                 .expect("ssz_types vec should not have a remaining buffer")
         }
     }
-}
-
-/// A helper function providing common functionality for finding the Merkle root of some bytes that
-/// represent a bitfield.
-pub fn bitfield_bytes_tree_hash_root<N: Unsigned>(bytes: &[u8]) -> Hash256 {
-    let byte_size = (N::to_usize() + 7) / 8;
-    let leaf_count = (byte_size + BYTES_PER_CHUNK - 1) / BYTES_PER_CHUNK;
-
-    let mut hasher = MerkleHasher::with_leaves(leaf_count);
-
-    hasher
-        .write(bytes)
-        .expect("bitfield should not exceed tree hash leaf limit");
-
-    hasher
-        .finish()
-        .expect("bitfield tree hash buffer should not exceed leaf limit")
 }
