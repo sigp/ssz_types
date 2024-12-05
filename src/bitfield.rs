@@ -12,10 +12,10 @@ use typenum::Unsigned;
 
 /// Maximum number of bytes to store on the stack in a bitfield's `SmallVec`.
 ///
-/// The default of 32 bytes is enough to take us through to ~1.31M validators,
-/// as the byte length of attestation bitfields is roughly `N // 32 slots // 64
-/// committes // 8 bits`.
-pub const SMALLVEC_LEN: usize = 80;
+/// 128 bytes is enough to take us through to ~2M active validators, as the byte
+/// length of attestation bitfields is roughly `N // 32 slots // 64 committes //
+/// 8 bits`.
+pub const SMALLVEC_LEN: usize = 128;
 
 /// A marker trait applied to `Variable` and `Fixed` that defines the behaviour of a `Bitfield`.
 pub trait BitfieldBehaviour: Clone {}
