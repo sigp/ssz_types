@@ -332,6 +332,7 @@ impl<'a, T: arbitrary::Arbitrary<'a>, N: 'static + Unsigned> arbitrary::Arbitrar
 mod test {
     use super::*;
     use ssz::*;
+    use std::collections::HashSet;
     use tree_hash::{merkle_root, TreeHash};
     use tree_hash_derive::TreeHash;
     use typenum::*;
@@ -558,5 +559,19 @@ mod test {
             List::try_from_iter(iter).unwrap(),
             List::try_from_iter(wonky_iter).unwrap()
         );
+    }
+
+    #[test]
+    fn std_hash() {
+        let x: VariableList<u32, U16> = VariableList::from(vec![3; 16]);
+        let y: VariableList<u32, U16> = VariableList::from(vec![4; 16]);
+        let mut hashset = HashSet::new();
+
+        for value in [x.clone(), y.clone()] {
+            assert!(hashset.insert(value.clone()));
+            assert!(!hashset.insert(value.clone()));
+            assert!(hashset.contains(&value));
+        }
+        assert_eq!(hashset.len(), 2);
     }
 }
