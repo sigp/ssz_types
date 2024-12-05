@@ -51,11 +51,9 @@ pub struct FixedVector<T, N> {
     _phantom: PhantomData<N>,
 }
 
-// Implement comparison functions even if T doesn't implement them (since we don't sotre T)
+// Implement comparison functions even if N doesn't implement PartialEq
 impl<T: PartialEq, N> PartialEq for FixedVector<T, N> {
     fn eq(&self, other: &Self) -> bool {
-        // T and N are already compared because other must have the same T/N
-        // We don't store values of T or N, so we don't have to compare them either.
         self.vec == other.vec
     }
 }
