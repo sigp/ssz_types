@@ -358,6 +358,7 @@ impl<'a, T: arbitrary::Arbitrary<'a>, N: 'static + Unsigned> arbitrary::Arbitrar
 mod test {
     use super::*;
     use ssz::*;
+    use std::collections::HashSet;
     use tree_hash::{merkle_root, TreeHash};
     use tree_hash_derive::TreeHash;
     use typenum::*;
@@ -512,5 +513,19 @@ mod test {
             fixed.tree_hash_root(),
             merkle_root(&repeat(a.tree_hash_root().as_slice(), 16), 0)
         );
+    }
+
+    #[test]
+    fn std_hash() {
+        let x: FixedVector<u32, U16> = FixedVector::from(vec![3; 16]);
+        let y: FixedVector<u32, U16> = FixedVector::from(vec![4; 16]);
+        let mut hashset = HashSet::new();
+
+        for value in [x.clone(), y.clone()] {
+            assert!(hashset.insert(value.clone()));
+            assert!(!hashset.insert(value.clone()));
+            assert!(hashset.contains(&value));
+        }
+        assert_eq!(hashset.len(), 2);
     }
 }
