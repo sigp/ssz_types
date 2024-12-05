@@ -1,6 +1,5 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
-use derivative::Derivative;
 use serde_derive::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
@@ -45,12 +44,24 @@ pub use typenum;
 /// let long: FixedVector<_, typenum::U5> = FixedVector::from(base);
 /// assert_eq!(&long[..], &[1, 2, 3, 4, 0]);
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize, Derivative)]
-#[derivative(PartialEq, Eq, Hash(bound = "T: std::hash::Hash"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FixedVector<T, N> {
     vec: Vec<T>,
     _phantom: PhantomData<N>,
+}
+
+// Implement comparison functions even if N doesn't implement PartialEq
+impl<T: PartialEq, N> PartialEq for FixedVector<T, N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.vec == other.vec
+    }
+}
+impl<T: Eq, N> Eq for FixedVector<T, N> {}
+impl<T: std::hash::Hash, N> std::hash::Hash for FixedVector<T, N> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.vec.hash(state);
+    }
 }
 
 impl<T, N: Unsigned> FixedVector<T, N> {
@@ -347,6 +358,7 @@ impl<'a, T: arbitrary::Arbitrary<'a>, N: 'static + Unsigned> arbitrary::Arbitrar
 mod test {
     use super::*;
     use ssz::*;
+    use std::collections::HashSet;
     use tree_hash::{merkle_root, TreeHash};
     use tree_hash_derive::TreeHash;
     use typenum::*;
@@ -501,5 +513,19 @@ mod test {
             fixed.tree_hash_root(),
             merkle_root(&repeat(a.tree_hash_root().as_slice(), 16), 0)
         );
+    }
+
+    #[test]
+    fn std_hash() {
+        let x: FixedVector<u32, U16> = FixedVector::from(vec![3; 16]);
+        let y: FixedVector<u32, U16> = FixedVector::from(vec![4; 16]);
+        let mut hashset = HashSet::new();
+
+        for value in [x.clone(), y.clone()] {
+            assert!(hashset.insert(value.clone()));
+            assert!(!hashset.insert(value.clone()));
+            assert!(hashset.contains(&value));
+        }
+        assert_eq!(hashset.len(), 2);
     }
 }

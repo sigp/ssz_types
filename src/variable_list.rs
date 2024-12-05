@@ -1,6 +1,5 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
-use derivative::Derivative;
 use serde_derive::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
@@ -47,12 +46,24 @@ pub use typenum;
 /// // Push a value to if it _does_ exceed the maximum.
 /// assert!(long.push(6).is_err());
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize, Derivative)]
-#[derivative(PartialEq, Eq, Hash(bound = "T: std::hash::Hash"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct VariableList<T, N> {
     vec: Vec<T>,
     _phantom: PhantomData<N>,
+}
+
+// Implement comparison functions even if N doesn't implement PartialEq
+impl<T: PartialEq, N> PartialEq for VariableList<T, N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.vec == other.vec
+    }
+}
+impl<T: Eq, N> Eq for VariableList<T, N> {}
+impl<T: std::hash::Hash, N> std::hash::Hash for VariableList<T, N> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.vec.hash(state);
+    }
 }
 
 /// Maximum number of elements to pre-allocate in `try_from_iter`.
@@ -321,6 +332,7 @@ impl<'a, T: arbitrary::Arbitrary<'a>, N: 'static + Unsigned> arbitrary::Arbitrar
 mod test {
     use super::*;
     use ssz::*;
+    use std::collections::HashSet;
     use tree_hash::{merkle_root, TreeHash};
     use tree_hash_derive::TreeHash;
     use typenum::*;
@@ -547,5 +559,19 @@ mod test {
             List::try_from_iter(iter).unwrap(),
             List::try_from_iter(wonky_iter).unwrap()
         );
+    }
+
+    #[test]
+    fn std_hash() {
+        let x: VariableList<u32, U16> = VariableList::from(vec![3; 16]);
+        let y: VariableList<u32, U16> = VariableList::from(vec![4; 16]);
+        let mut hashset = HashSet::new();
+
+        for value in [x.clone(), y.clone()] {
+            assert!(hashset.insert(value.clone()));
+            assert!(!hashset.insert(value.clone()));
+            assert!(hashset.contains(&value));
+        }
+        assert_eq!(hashset.len(), 2);
     }
 }
