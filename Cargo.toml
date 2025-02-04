@@ -11,7 +11,7 @@ keywords = ["ethereum"]
 categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-tree_hash = "0.9"
+tree_hash = "0.9.1"
 ethereum_serde_utils = "0.7.0"
 ethereum_ssz = "0.8"
 serde = "1.0.0"
