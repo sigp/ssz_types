@@ -1,6 +1,7 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
-use serde_derive::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_derive::Serialize;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
@@ -44,7 +45,7 @@ pub use typenum;
 /// let long: FixedVector<_, typenum::U5> = FixedVector::from(base);
 /// assert_eq!(&long[..], &[1, 2, 3, 4, 0]);
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]
 pub struct FixedVector<T, N> {
     vec: Vec<T>,
@@ -340,6 +341,31 @@ where
     }
 }
 
+impl<'de, T, N> Deserialize<'de> for FixedVector<T, N>
+where
+    T: Deserialize<'de>,
+    N: Unsigned,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let vec = Vec::<T>::deserialize(deserializer)?;
+        if vec.len() == N::to_usize() {
+            Ok(FixedVector {
+                vec,
+                _phantom: PhantomData,
+            })
+        } else {
+            Err(serde::de::Error::custom(format!(
+                "Wrong number of FixedVector elements. Expected {}, actual {}",
+                N::to_usize(),
+                vec.len(),
+            )))
+        }
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 impl<'a, T: arbitrary::Arbitrary<'a>, N: 'static + Unsigned> arbitrary::Arbitrary<'a>
     for FixedVector<T, N>
@@ -527,5 +553,20 @@ mod test {
             assert!(hashset.contains(&value));
         }
         assert_eq!(hashset.len(), 2);
+    }
+    #[test]
+    fn serde_invalid_length() {
+        use typenum::U4;
+        let json = serde_json::json!([1, 2, 3, 4, 5]);
+        let result: Result<FixedVector<u64, U4>, _> = serde_json::from_value(json);
+        assert!(result.is_err());
+
+        let json = serde_json::json!([1, 2, 3]);
+        let result: Result<FixedVector<u64, U4>, _> = serde_json::from_value(json);
+        assert!(result.is_err());
+
+        let json = serde_json::json!([1, 2, 3, 4]);
+        let result: Result<FixedVector<u64, U4>, _> = serde_json::from_value(json);
+        assert!(result.is_ok());
     }
 }
