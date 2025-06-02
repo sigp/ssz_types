@@ -1,4 +1,5 @@
 use crate::tree_hash::vec_tree_hash_root;
+use crate::typenum_helpers::to_usize;
 use crate::Error;
 use serde::Deserialize;
 use serde_derive::Serialize;
@@ -79,7 +80,7 @@ impl<T, N: Unsigned> VariableList<T, N> {
     /// Returns `Some` if the given `vec` equals the fixed length of `Self`. Otherwise returns
     /// `None`.
     pub fn new(vec: Vec<T>) -> Result<Self, Error> {
-        if vec.len() <= N::to_usize() {
+        if vec.len() <= to_usize::<N>() {
             Ok(Self {
                 vec,
                 _phantom: PhantomData,
@@ -112,7 +113,7 @@ impl<T, N: Unsigned> VariableList<T, N> {
 
     /// Returns the type-level maximum length.
     pub fn max_len() -> usize {
-        N::to_usize()
+        to_usize::<N>()
     }
 
     /// Appends `value` to the back of `self`.
@@ -133,7 +134,7 @@ impl<T, N: Unsigned> VariableList<T, N> {
 
 impl<T, N: Unsigned> From<Vec<T>> for VariableList<T, N> {
     fn from(mut vec: Vec<T>) -> Self {
-        vec.truncate(N::to_usize());
+        vec.truncate(to_usize::<N>());
 
         Self {
             vec,
@@ -256,7 +257,7 @@ impl<T, N: Unsigned> ssz::TryFromIter<T> for VariableList<T, N> {
     where
         I: IntoIterator<Item = T>,
     {
-        let n = N::to_usize();
+        let n = to_usize::<N>();
         let clamped_n = std::cmp::min(MAX_ELEMENTS_TO_PRE_ALLOCATE, n);
         let iter = value.into_iter();
 
@@ -282,7 +283,7 @@ where
     }
 
     fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        let max_len = N::to_usize();
+        let max_len = to_usize::<N>();
 
         if bytes.is_empty() {
             Ok(vec![].into())
@@ -323,7 +324,7 @@ where
         D: serde::Deserializer<'de>,
     {
         let vec = Vec::<T>::deserialize(deserializer)?;
-        if vec.len() <= N::to_usize() {
+        if vec.len() <= to_usize::<N>() {
             Ok(VariableList {
                 vec,
                 _phantom: PhantomData,
@@ -332,7 +333,7 @@ where
             Err(serde::de::Error::custom(format!(
                 "VariableList length {} exceeds maximum length {}",
                 vec.len(),
-                N::to_usize()
+                to_usize::<N>()
             )))
         }
     }
@@ -343,7 +344,7 @@ impl<'a, T: arbitrary::Arbitrary<'a>, N: 'static + Unsigned> arbitrary::Arbitrar
     for VariableList<T, N>
 {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        let max_size = N::to_usize();
+        let max_size = to_usize::<N>();
         let rand = usize::arbitrary(u)?;
         let size = std::cmp::min(rand, max_size);
         let mut vec: Vec<T> = Vec::with_capacity(size);
@@ -544,7 +545,6 @@ mod test {
         }
     }
 
-    #[test]
     fn large_list_pre_allocation() {
         use std::iter;
         use typenum::U1099511627776;
@@ -576,7 +576,7 @@ mod test {
 
         let iter = iter::repeat(1).take(5);
         let wonky_iter = WonkyIterator {
-            hint: N::to_usize() / 2,
+            hint: to_usize::<N>() / 2,
             iter: iter.clone(),
         };
 
@@ -585,6 +585,19 @@ mod test {
             List::try_from_iter(iter).unwrap(),
             List::try_from_iter(wonky_iter).unwrap()
         );
+    }
+
+    #[test]
+    #[cfg(any(target_pointer_width = "64", feature = "cap-typenum-to-usize-overflow"))]
+    fn large_list_pre_allocation_test() {
+        large_list_pre_allocation()
+    }
+
+    #[test]
+    #[cfg(not(any(target_pointer_width = "64", feature = "cap-typenum-to-usize-overflow")))]
+    #[should_panic]
+    fn large_list_pre_allocation_test() {
+        large_list_pre_allocation()
     }
 
     #[test]
@@ -615,5 +628,212 @@ mod test {
         let json = serde_json::json!([1, 2, 3, 4]);
         let result: Result<VariableList<u64, U4>, _> = serde_json::from_value(json);
         assert!(result.is_ok());
+    }
+
+    mod large_typenums {
+        use crate::tree_hash::packing_factor;
+
+        use super::*;
+        use ethereum_hashing::ZERO_HASHES;
+        fn sanity_check() {
+            assert_eq!(U1099511627776::to_u64(), 1099511627776u64);
+        }
+
+        fn ssz_bytes_len() {
+            let vec: VariableList<u16, U8> = vec![0; 4].into();
+            let vec2: VariableList<u16, U1099511627776> = vec![0; 4].into();
+            assert_eq!(vec.len(), 4);
+            assert_eq!(vec.ssz_bytes_len(), 8);
+            assert_eq!(vec2.len(), 4);
+            assert_eq!(vec2.ssz_bytes_len(), 8);
+        }
+
+        fn encode() {
+            let vec: VariableList<u16, U1099511627776> = vec![0; 2].into();
+            assert_eq!(vec.as_ssz_bytes(), vec![0, 0, 0, 0]);
+            assert_eq!(
+                <VariableList<u16, U1099511627776> as Encode>::ssz_fixed_len(),
+                4
+            );
+        }
+
+        fn encode_non_power_of_2() {
+            type NVal = typenum::Add1<U1099511627776>;
+            let vec: VariableList<u16, NVal> = vec![0; 2].into();
+            assert_eq!(vec.as_ssz_bytes(), vec![0, 0, 0, 0]);
+            assert_eq!(<VariableList<u16, NVal> as Encode>::ssz_fixed_len(), 4);
+        }
+
+        fn u16_len_2power40() {
+            round_trip::<VariableList<u16, U1099511627776>>(vec![42; 8].into());
+            round_trip::<VariableList<u16, U1099511627776>>(vec![0; 8].into());
+        }
+
+        trait CreateZero {
+            fn zero() -> Self;
+        }
+
+        impl CreateZero for Hash256 {
+            fn zero() -> Self {
+                [0; 32].into()
+            }
+        }
+
+        impl CreateZero for u64 {
+            fn zero() -> Self {
+                0
+            }
+        }
+
+        struct TreeHashTestCase<T: TreeHash, N: Unsigned> {
+            pub expected_hash: Hash256,
+            pub vec: VariableList<T, N>,
+        }
+
+        impl<T: TreeHash + CreateZero + Clone, N: Unsigned> TreeHashTestCase<T, N> {
+            fn test(&self) {
+                assert_eq!(
+                    self.vec.tree_hash_root(),
+                    tree_hash::mix_in_length(&self.expected_hash, self.vec.len())
+                );
+            }
+            pub fn zeros(vec_len: usize) -> Self {
+                let full_depth = N::to_u64().next_power_of_two().ilog2();
+                let packing_depth_discount = packing_factor::<T>().next_power_of_two().ilog2();
+                let depth = (full_depth - packing_depth_discount) as usize;
+                Self {
+                    vec: VariableList::from(vec![T::zero(); vec_len]),
+                    expected_hash: ZERO_HASHES[depth].into(),
+                }
+            }
+        }
+
+        struct AllTreeHashTests<T> {
+            _phantom: PhantomData<T>,
+        }
+
+        impl<T: TreeHash + CreateZero + Clone> AllTreeHashTests<T> {
+            pub fn all_tests() {
+                TreeHashTestCase::<T, U16>::zeros(10).test();
+
+                TreeHashTestCase::<T, Add1<U16>>::zeros(10).test();
+                TreeHashTestCase::<T, Sub1<U32>>::zeros(10).test();
+                TreeHashTestCase::<T, U32>::zeros(10).test();
+
+                TreeHashTestCase::<T, U1024>::zeros(10).test();
+
+                TreeHashTestCase::<T, Sub1<U65536>>::zeros(10).test();
+                TreeHashTestCase::<T, U65536>::zeros(10).test();
+                TreeHashTestCase::<T, Add1<U65536>>::zeros(10).test();
+
+                TreeHashTestCase::<T, Sub1<U536870912>>::zeros(10).test();
+                TreeHashTestCase::<T, U536870912>::zeros(10).test();
+                TreeHashTestCase::<T, Add1<U536870912>>::zeros(10).test();
+
+                TreeHashTestCase::<T, Sub1<U1073741824>>::zeros(10).test();
+                TreeHashTestCase::<T, U1073741824>::zeros(10).test();
+                TreeHashTestCase::<T, Add1<U1073741824>>::zeros(10).test();
+
+                TreeHashTestCase::<T, Sub1<U2147483648>>::zeros(10).test();
+                TreeHashTestCase::<T, U2147483648>::zeros(10).test();
+                TreeHashTestCase::<T, Add1<U2147483648>>::zeros(10).test();
+
+                TreeHashTestCase::<T, Sub1<U4294967296>>::zeros(10).test();
+                TreeHashTestCase::<T, U4294967296>::zeros(10).test();
+                TreeHashTestCase::<T, Add1<U4294967296>>::zeros(10).test();
+
+                // 2 ** 40
+                TreeHashTestCase::<T, Sub1<U1099511627776>>::zeros(10).test();
+                TreeHashTestCase::<T, U1099511627776>::zeros(10).test();
+                TreeHashTestCase::<T, Add1<U1099511627776>>::zeros(10).test();
+
+                // 2**48
+                TreeHashTestCase::<T, Sub1<U281474976710656>>::zeros(10).test();
+                TreeHashTestCase::<T, U281474976710656>::zeros(10).test();
+                // Beyond 2**48 target_pointer_width="64" arches still work ok, target_pointer_width="32" fail due to ethereum_hashing::ZEROHASHES running out of elements
+            }
+        }
+
+        #[cfg(any(target_pointer_width = "64", feature = "cap-typenum-to-usize-overflow"))]
+        mod arch64_bit_or_capping {
+            #[test]
+            fn sanity_check() {
+                super::sanity_check()
+            }
+
+            #[test]
+            fn ssz_bytes_len() {
+                super::ssz_bytes_len();
+            }
+
+            #[test]
+            fn encode() {
+                super::encode();
+            }
+
+            #[test]
+            fn encode_non_power_of_2() {
+                super::encode_non_power_of_2();
+            }
+
+            #[test]
+            fn u16_len_2power40() {
+                super::u16_len_2power40()
+            }
+
+            #[test]
+            fn tree_hash_tests_hash256() {
+                super::AllTreeHashTests::<super::Hash256>::all_tests();
+            }
+
+            #[test]
+            fn tree_hash_tests_u64() {
+                super::AllTreeHashTests::<u64>::all_tests();
+            }
+        }
+
+        #[cfg(not(any(target_pointer_width = "64", feature = "cap-typenum-to-usize-overflow")))]
+        mod arch32_bit_no_capping {
+            #[test]
+            fn sanity_check() {
+                super::sanity_check()
+            }
+
+            #[test]
+            #[should_panic()]
+            fn ssz_bytes_len() {
+                super::ssz_bytes_len();
+            }
+
+            #[test]
+            #[should_panic()]
+            fn encode() {
+                super::encode();
+            }
+
+            #[test]
+            #[should_panic()]
+            fn encode_non_power_of_2() {
+                super::encode_non_power_of_2();
+            }
+
+            #[test]
+            #[should_panic()]
+            fn u16_len_2power40() {
+                super::u16_len_2power40()
+            }
+
+            #[test]
+            #[should_panic()]
+            fn tree_hash_tests_hash256() {
+                super::AllTreeHashTests::<super::Hash256>::all_tests();
+            }
+
+            #[test]
+            #[should_panic()]
+            fn tree_hash_tests_u64() {
+                super::AllTreeHashTests::<u64>::all_tests();
+            }
+        }
     }
 }
