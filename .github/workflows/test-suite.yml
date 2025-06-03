@@ -31,6 +31,28 @@ jobs:
       run: rustup update stable
     - name: Run tests
       run: cargo test --release
+  cross-test-i686:
+    name: cross test i686-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install cross
+      run: cargo install cross --git https://github.com/cross-rs/cross
+    - name: Add i686-unknown-linux-gnu target
+      run: rustup target add i686-unknown-linux-gnu
+    - name: Run cross test for i686-unknown-linux-gnu
+      run: cross test --target i686-unknown-linux-gnu
+  cross-test-i686-overflow:
+    name: cross test i686-unknown-linux-gnu (typenum overflow feature)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install cross
+      run: cargo install cross --git https://github.com/cross-rs/cross
+    - name: Add i686-unknown-linux-gnu target
+      run: rustup target add i686-unknown-linux-gnu
+    - name: Run cross test for i686-unknown-linux-gnu with cap-typenum-to-usize-overflow
+      run: cross test --target i686-unknown-linux-gnu --features cap-typenum-to-usize-overflow
   coverage:
     name: cargo-tarpaulin
     runs-on: ubuntu-latest

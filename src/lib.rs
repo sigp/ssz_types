@@ -41,6 +41,7 @@
 mod fixed_vector;
 pub mod serde_utils;
 mod tree_hash;
+mod typenum_helpers;
 mod variable_list;
 
 pub use fixed_vector::FixedVector;
