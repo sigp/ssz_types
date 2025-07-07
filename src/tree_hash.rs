@@ -6,6 +6,122 @@ use typenum::{
     Unsigned,
 };
 
+pub fn generate_proof_for_vec<T, N>(vec: &[T], gindex: usize) -> Result<Vec<Hash256>, tree_hash::prototype::Error>
+where
+    T: TreeHash,
+    N: Unsigned,
+{
+    let target_size = N::to_usize();
+    
+    if gindex == 0 {
+        return Err(tree_hash::prototype::Error::Oops);
+    }
+    
+    if target_size == 0 {
+        return Ok(vec![]);
+    }
+    
+    generate_proof::<T, N>(vec, gindex)
+}
+
+fn generate_proof<T, N>(vec: &[T], gindex: usize) -> Result<Vec<Hash256>, tree_hash::prototype::Error>
+where
+    T: TreeHash,
+    N: Unsigned,
+{
+    let target_size = N::to_usize();
+    let mut proof = Vec::new();
+    let mut current_gindex = gindex;
+    
+    let (_, effective_size) = match T::tree_hash_type() {
+        TreeHashType::Basic => {
+            let chunk_count = (target_size + T::tree_hash_packing_factor() - 1) / T::tree_hash_packing_factor();
+            let padded_count = chunk_count.next_power_of_two();
+            (64 - padded_count.leading_zeros() as usize, padded_count)
+        }
+        _ => {
+            let padded_size = target_size.next_power_of_two();
+            (64 - padded_size.leading_zeros() as usize, padded_size)
+        }
+    };
+    
+    while current_gindex > 1 {
+        let is_right_child = current_gindex % 2 == 1;
+        let sibling_gindex = if is_right_child {
+            current_gindex - 1
+        } else {
+            current_gindex + 1
+        };
+        
+        let sibling_hash = compute_node_hash_at_gindex::<T, N>(vec, sibling_gindex, effective_size)?;
+        proof.push(sibling_hash);
+        
+        current_gindex /= 2;
+    }
+    
+    Ok(proof)
+}
+
+fn compute_node_hash_at_gindex<T, N>(
+    vec: &[T], 
+    gindex: usize, 
+    effective_size: usize
+) -> Result<Hash256, tree_hash::prototype::Error>
+where
+    T: TreeHash,
+    N: Unsigned,
+{
+    let target_size = N::to_usize();
+    
+    match T::tree_hash_type() {
+        TreeHashType::Basic => {
+            let chunk_count = (target_size + T::tree_hash_packing_factor() - 1) / T::tree_hash_packing_factor();
+            
+            if gindex >= effective_size {
+                let chunk_index = gindex - effective_size;
+                if chunk_index < chunk_count {
+                    let start_idx = chunk_index * T::tree_hash_packing_factor();
+                    let end_idx = std::cmp::min(start_idx + T::tree_hash_packing_factor(), vec.len());
+                    
+                    let mut hasher = MerkleHasher::with_leaves(1);
+                    for j in start_idx..end_idx {
+                        hasher.write(&vec[j].tree_hash_packed_encoding()).map_err(|_| tree_hash::prototype::Error::Oops)?;
+                    }
+                    hasher.finish().map_err(|_| tree_hash::prototype::Error::Oops)
+                } else {
+                    Ok(Hash256::new([0; 32]))
+                }
+            } else {
+                let left_child = gindex * 2;
+                let right_child = gindex * 2 + 1;
+                
+                let left_hash = compute_node_hash_at_gindex::<T, N>(vec, left_child, effective_size)?;
+                let right_hash = compute_node_hash_at_gindex::<T, N>(vec, right_child, effective_size)?;
+                
+                Ok(tree_hash::merkle_root(&[left_hash.as_slice(), right_hash.as_slice()].concat(), 0))
+            }
+        }
+        _ => {
+            if gindex >= effective_size {
+                let leaf_index = gindex - effective_size;
+                if leaf_index < vec.len() {
+                    Ok(vec[leaf_index].tree_hash_root())
+                } else {
+                    Ok(Hash256::new([0; 32]))
+                }
+            } else {
+                let left_child = gindex * 2;
+                let right_child = gindex * 2 + 1;
+                
+                let left_hash = compute_node_hash_at_gindex::<T, N>(vec, left_child, effective_size)?;
+                let right_hash = compute_node_hash_at_gindex::<T, N>(vec, right_child, effective_size)?;
+                
+                Ok(tree_hash::merkle_root(&[left_hash.as_slice(), right_hash.as_slice()].concat(), 0))
+            }
+        }
+    }
+}
+
 /// A helper function providing common functionality between the `TreeHash` implementations for
 /// `FixedVector` and `VariableList`.
 pub fn vec_tree_hash_root<T, N>(vec: &[T]) -> Hash256
