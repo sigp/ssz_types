@@ -228,6 +228,27 @@ where
     }
 }
 
+impl<T, N: Unsigned> tree_hash::prototype::MerkleProof for VariableList<T, N>
+where 
+    T: tree_hash::TreeHash
+{
+    fn compute_proof_for_gindex(&self, gindex: usize) -> Result<Vec<Hash256>, tree_hash::prototype::Error>{
+        if gindex < 2 {
+            return Err(tree_hash::prototype::Error::Oops);
+        }
+
+        let adjusted_gindex = if gindex == 2 {
+            1 
+        } else if gindex > 2 {
+            gindex - 2 
+        } else {
+            return Err(tree_hash::prototype::Error::Oops);
+        };
+
+        crate::tree_hash::generate_proof_for_vec::<T, N>(&self.vec, adjusted_gindex)
+    }
+}
+
 impl<T, N: Unsigned> ssz::Encode for VariableList<T, N>
 where
     T: ssz::Encode,
@@ -615,5 +636,98 @@ mod test {
         let json = serde_json::json!([1, 2, 3, 4]);
         let result: Result<VariableList<u64, U4>, _> = serde_json::from_value(json);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn merkle_proof_basic() {
+        use tree_hash::prototype::MerkleProof;
+        use typenum::U4;
+        
+        let list: VariableList<u64, U4> = VariableList::new(vec![1, 2, 3]).unwrap();
+        
+        let proof = list.compute_proof_for_gindex(0);
+        assert!(proof.is_err());
+        
+        let proof = list.compute_proof_for_gindex(1);
+        assert!(proof.is_err());
+        
+        let proof = list.compute_proof_for_gindex(2);
+        assert!(proof.is_ok());
+        if let Ok(proof) = proof {
+            assert_eq!(proof.len(), 0);
+        }
+        
+        let proof = list.compute_proof_for_gindex(4);
+        assert!(proof.is_ok());
+        if let Ok(proof) = proof {
+            assert!(!proof.is_empty());
+        }
+    }
+
+  
+    #[test]
+    fn merkle_proof_complex_types() {
+        use tree_hash::prototype::MerkleProof;
+        use typenum::U4;
+        
+        // Create a list of composite types
+        let a1 = A { a: 1, b: 2 };
+        let a2 = A { a: 3, b: 4 };
+        let a3 = A { a: 5, b: 6 };
+        let list: VariableList<A, U4> = VariableList::new(vec![a1, a2, a3]).unwrap();
+        
+        // Test proof generation for complex types
+        let proof = list.compute_proof_for_gindex(4);
+        assert!(proof.is_ok());
+        if let Ok(proof) = proof {
+            // Verify proof structure
+            assert!(!proof.is_empty());
+            
+            // Test that all proof elements are valid Hash256
+            for hash in proof {
+                assert_eq!(hash.len(), 32);
+            }
+        }
+    }
+
+       
+
+    #[test]
+    fn merkle_proof_tree_structure() {
+        use tree_hash::prototype::MerkleProof;
+        use typenum::U8;
+        
+        let list: VariableList<u64, U8> = VariableList::new(vec![1, 2, 3, 4, 5]).unwrap();
+        
+        let test_gindices = vec![2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16];
+        
+        for gindex in test_gindices {
+            let proof = list.compute_proof_for_gindex(gindex);
+            assert!(proof.is_ok(), "Failed to generate proof for gindex {}", gindex);
+            
+            if let Ok(proof) = proof {
+                let adjusted_gindex = if gindex == 2 {
+                    1
+                } else {
+                    gindex - 2
+                };
+                
+                if adjusted_gindex == 1 {
+                    assert_eq!(proof.len(), 0, "Proof should be empty for gindex {} (maps to root)", gindex);
+                } else {
+                    assert!(!proof.is_empty(), "Proof should not be empty for gindex {}", gindex);
+                }
+                
+                let adjusted_gindex = if gindex == 2 {
+                    1
+                } else {
+                    gindex - 2
+                };
+                if adjusted_gindex > 1 {
+                    let expected_depth = 64 - adjusted_gindex.leading_zeros() as usize - 1;
+                    assert_eq!(proof.len(), expected_depth, "Incorrect proof length for gindex {}", gindex);
+                }
+            }
+        }
     }
 }

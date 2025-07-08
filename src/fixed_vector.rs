@@ -210,6 +210,14 @@ where
     }
 }
 
+impl<T, N: Unsigned> tree_hash::prototype::MerkleProof for FixedVector<T, N>
+where 
+    T: tree_hash::TreeHash
+{
+    fn compute_proof_for_gindex(&self, gindex: usize) -> Result<Vec<Hash256>, tree_hash::prototype::Error>{
+        crate::tree_hash::generate_proof_for_vec::<T, N>(&self.vec, gindex)
+    }
+}
 impl<T, N: Unsigned> ssz::Encode for FixedVector<T, N>
 where
     T: ssz::Encode,
@@ -568,5 +576,75 @@ mod test {
         let json = serde_json::json!([1, 2, 3, 4]);
         let result: Result<FixedVector<u64, U4>, _> = serde_json::from_value(json);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn merkle_proof_basic() {
+        use tree_hash::prototype::MerkleProof;
+        use typenum::U4;
+        
+        let vec: FixedVector<u64, U4> = FixedVector::new(vec![1, 2, 3, 4]).unwrap();
+        
+        let proof = vec.compute_proof_for_gindex(1);
+        assert!(proof.is_ok());
+        if let Ok(proof) = proof {
+            assert_eq!(proof.len(), 0);
+        }
+        
+        let proof = vec.compute_proof_for_gindex(2);
+        assert!(proof.is_ok());
+        if let Ok(proof) = proof {
+            assert!(!proof.is_empty());
+        }
+        
+        let proof = vec.compute_proof_for_gindex(0);
+        assert!(proof.is_err());
+    }
+
+    #[test]
+    fn merkle_proof_complex_types() {
+        use tree_hash::prototype::MerkleProof;
+        use typenum::U2;
+        
+        let a1 = A { a: 1, b: 2 };
+        let a2 = A { a: 3, b: 4 };
+        let vec: FixedVector<A, U2> = FixedVector::new(vec![a1, a2]).unwrap();
+        
+        let proof = vec.compute_proof_for_gindex(2);
+        assert!(proof.is_ok());
+        if let Ok(proof) = proof {
+            assert!(!proof.is_empty());
+            
+            for hash in proof {
+                assert_eq!(hash.len(), 32);
+            }
+        }
+    }
+
+    #[test]
+    fn merkle_proof_tree_depth() {
+        use tree_hash::prototype::MerkleProof;
+        use typenum::U8;
+        
+        let vec: FixedVector<u64, U8> = FixedVector::new(vec![1, 2, 3, 4, 5, 6, 7, 8]).unwrap();
+        
+        let gindices = vec![1, 2, 3, 4, 5, 6, 7, 8, 15, 16];
+        
+        for gindex in gindices {
+            let proof = vec.compute_proof_for_gindex(gindex);
+            
+            if gindex == 0 {
+                assert!(proof.is_err());
+            } else if gindex == 1 {
+                if let Ok(proof) = proof {
+                    assert_eq!(proof.len(), 0);
+                }
+            } else {
+                if let Ok(proof) = proof {
+                    let expected_depth = 64 - gindex.leading_zeros() as usize - 1;
+                    assert_eq!(proof.len(), expected_depth);
+                }
+            }
+        }
     }
 }
