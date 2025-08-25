@@ -438,6 +438,15 @@ mod test {
     fn u16_len_8() {
         round_trip::<VariableList<u16, U8>>(vec![42; 8].try_into().unwrap());
         round_trip::<VariableList<u16, U8>>(vec![0; 8].try_into().unwrap());
+        round_trip::<VariableList<u16, U8>>(vec![].try_into().unwrap());
+    }
+
+    #[test]
+    fn ssz_empty_list() {
+        let empty_list = VariableList::<u16, U8>::default();
+        let bytes = empty_list.as_ssz_bytes();
+        assert!(bytes.is_empty());
+        assert_eq!(VariableList::from_ssz_bytes(&[]).unwrap(), empty_list);
     }
 
     fn root_with_length(bytes: &[u8], len: usize) -> Hash256 {
