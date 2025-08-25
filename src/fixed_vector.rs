@@ -110,7 +110,7 @@ impl<T, N: Unsigned> FixedVector<T, N> {
     }
 }
 
-impl<T: Default, N: Unsigned> TryFrom<Vec<T>> for FixedVector<T, N> {
+impl<T, N: Unsigned> TryFrom<Vec<T>> for FixedVector<T, N> {
     type Error = Error;
 
     fn try_from(vec: Vec<T>) -> Result<Self, Error> {
