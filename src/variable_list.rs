@@ -298,15 +298,17 @@ where
                 )));
             }
 
-            bytes
-                .chunks(T::ssz_fixed_len())
-                .try_fold(Vec::with_capacity(num_items), |mut vec, chunk| {
+            bytes.chunks(T::ssz_fixed_len()).try_fold(
+                Vec::with_capacity(num_items),
+                |mut vec, chunk| {
                     vec.push(T::from_ssz_bytes(chunk)?);
                     Ok(vec)
-                })
+                },
+            )
         } else {
             ssz::decode_list_of_variable_length_items(bytes, Some(max_len))
-        }?.try_into()
+        }?
+        .try_into()
         .map_err(|e| {
             ssz::DecodeError::BytesInvalid(format!("VariableList::try_from failed: {e:?}"))
         })
