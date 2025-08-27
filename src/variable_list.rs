@@ -219,7 +219,7 @@ where
     }
 
     fn tree_hash_root(&self) -> Hash256 {
-        let root = vec_tree_hash_root::<T, N>(&self.vec);
+        let root = vec_tree_hash_root::<T>(&self.vec, N::to_usize());
 
         tree_hash::mix_in_length(&root, self.len())
     }

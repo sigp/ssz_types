@@ -202,7 +202,7 @@ where
     }
 
     fn tree_hash_root(&self) -> Hash256 {
-        vec_tree_hash_root::<T, N>(&self.vec)
+        vec_tree_hash_root::<T>(&self.vec, N::to_usize())
     }
 }
 
