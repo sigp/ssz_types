@@ -26,14 +26,14 @@
 //! let mut example = Example {
 //!     bit_vector: Bitfield::new(),
 //!     bit_list: Bitfield::with_capacity(4).unwrap(),
-//!     variable_list: <_>::from(vec![0, 1]),
-//!     fixed_vector: <_>::from(vec![2, 3]),
+//!     variable_list: VariableList::try_from(vec![0, 1]).unwrap(),
+//!     fixed_vector: FixedVector::try_from(vec![2, 3, 4, 5, 6, 7, 8, 9]).unwrap(),
 //! };
 //!
 //! assert_eq!(example.bit_vector.len(), 8);
 //! assert_eq!(example.bit_list.len(), 4);
 //! assert_eq!(&example.variable_list[..], &[0, 1]);
-//! assert_eq!(&example.fixed_vector[..], &[2, 3, 0, 0, 0, 0, 0, 0]);
+//! assert_eq!(&example.fixed_vector[..], &[2, 3, 4, 5, 6, 7, 8, 9]);
 //!
 //! ```
 
