@@ -1,6 +1,6 @@
 //! Formats `VariableList<u64,N>` and similar types using quotes.
 //!
-//! E.g., `VariableList::from(vec![0, 1, 2])` serializes as `["0", "1", "2"]`.
+//! E.g., `VariableList::try_from(vec![0, 1, 2])` serializes as `["0", "1", "2"]`.
 //!
 //! Quotes can be optional during decoding. If the length of the `Vec` is greater than `N`, deserialization fails.
 
@@ -76,21 +76,21 @@ mod test {
     #[test]
     fn quoted_list_success() {
         let obj: Obj = serde_json::from_str(r#"{ "values": ["1", "2", "3", "4"] }"#).unwrap();
-        let expected: VariableList<u64, U4> = VariableList::from(vec![1, 2, 3, 4]);
+        let expected: VariableList<u64, U4> = VariableList::try_from(vec![1, 2, 3, 4]).unwrap();
         assert_eq!(obj.values, expected);
     }
 
     #[test]
     fn unquoted_list_success() {
         let obj: Obj = serde_json::from_str(r#"{ "values": [1, 2, 3, 4] }"#).unwrap();
-        let expected: VariableList<u64, U4> = VariableList::from(vec![1, 2, 3, 4]);
+        let expected: VariableList<u64, U4> = VariableList::try_from(vec![1, 2, 3, 4]).unwrap();
         assert_eq!(obj.values, expected);
     }
 
     #[test]
     fn mixed_list_success() {
         let obj: Obj = serde_json::from_str(r#"{ "values": ["1", 2, "3", "4"] }"#).unwrap();
-        let expected: VariableList<u64, U4> = VariableList::from(vec![1, 2, 3, 4]);
+        let expected: VariableList<u64, U4> = VariableList::try_from(vec![1, 2, 3, 4]).unwrap();
         assert_eq!(obj.values, expected);
     }
 
@@ -103,7 +103,7 @@ mod test {
     #[test]
     fn short_list_success() {
         let obj: Obj = serde_json::from_str(r#"{ "values": [1, 2] }"#).unwrap();
-        let expected: VariableList<u64, U4> = VariableList::from(vec![1, 2]);
+        let expected: VariableList<u64, U4> = VariableList::try_from(vec![1, 2]).unwrap();
         assert_eq!(obj.values, expected);
     }
 
