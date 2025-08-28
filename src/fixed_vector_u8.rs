@@ -212,7 +212,6 @@ impl<'a, N: 'static + Unsigned> arbitrary::Arbitrary<'a> for FixedVectorU8<N> {
 mod test {
     use super::*;
     use ssz::*;
-    use std::collections::HashSet;
     use tree_hash::TreeHash;
     use typenum::*;
 
@@ -333,19 +332,19 @@ mod test {
     fn tree_hash_consistency() {
         // Tree hashing uses 32-byte leaves, so test around these boundaries
         let test_vectors = vec![
-            vec![], // 0 bytes
-            vec![0], // 1 byte
-            vec![0; 8], // 8 bytes
-            vec![0; 16], // 16 bytes
-            vec![0; 31], // 31 bytes (just under 32)
-            vec![0; 32], // 32 bytes (exactly one leaf)
-            vec![0; 33], // 33 bytes (just over one leaf)
-            vec![42; 63], // 63 bytes (just under 2 leaves)
-            vec![42; 64], // 64 bytes (exactly 2 leaves)
-            vec![42; 65], // 65 bytes (just over 2 leaves)
-            vec![255; 95], // 95 bytes (just under 3 leaves)
-            vec![255; 96], // 96 bytes (exactly 3 leaves)
-            vec![128; 128], // 128 bytes (exactly 4 leaves)
+            vec![],                                      // 0 bytes
+            vec![0],                                     // 1 byte
+            vec![0; 8],                                  // 8 bytes
+            vec![0; 16],                                 // 16 bytes
+            vec![0; 31],                                 // 31 bytes (just under 32)
+            vec![0; 32],                                 // 32 bytes (exactly one leaf)
+            vec![0; 33],                                 // 33 bytes (just over one leaf)
+            vec![42; 63],                                // 63 bytes (just under 2 leaves)
+            vec![42; 64],                                // 64 bytes (exactly 2 leaves)
+            vec![42; 65],                                // 65 bytes (just over 2 leaves)
+            vec![255; 95],                               // 95 bytes (just under 3 leaves)
+            vec![255; 96],                               // 96 bytes (exactly 3 leaves)
+            vec![128; 128],                              // 128 bytes (exactly 4 leaves)
             (0..160).map(|i| (i % 256) as u8).collect(), // 160 bytes (5 leaves)
         ];
 

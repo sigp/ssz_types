@@ -361,47 +361,41 @@ mod test {
         // Format: (test_data, max_capacity)
         let test_vectors = vec![
             // Small sizes
-            (vec![], 1), // 0 bytes, max 1
-            (vec![0], 2), // 1 byte, max 2
-            (vec![0; 8], 16), // 8 bytes, max 16
+            (vec![], 1),       // 0 bytes, max 1
+            (vec![0], 2),      // 1 byte, max 2
+            (vec![0; 8], 16),  // 8 bytes, max 16
             (vec![0; 16], 32), // 16 bytes, max 32
-            
             // Around 32-byte boundary (1 leaf)
-            (vec![42; 30], 64), // 30 bytes (under 1 leaf)
-            (vec![42; 31], 64), // 31 bytes (just under 1 leaf)
-            (vec![42; 32], 64), // 32 bytes (exactly 1 leaf)
+            (vec![42; 30], 64),  // 30 bytes (under 1 leaf)
+            (vec![42; 31], 64),  // 31 bytes (just under 1 leaf)
+            (vec![42; 32], 64),  // 32 bytes (exactly 1 leaf)
             (vec![255; 33], 64), // 33 bytes (just over 1 leaf)
             (vec![128; 35], 64), // 35 bytes (over 1 leaf)
-            
             // Around 64-byte boundary (2 leaves)
             (vec![1; 62], 96), // 62 bytes (under 2 leaves)
             (vec![2; 63], 96), // 63 bytes (just under 2 leaves)
             (vec![3; 64], 96), // 64 bytes (exactly 2 leaves)
             (vec![4; 65], 96), // 65 bytes (just over 2 leaves)
             (vec![5; 67], 96), // 67 bytes (over 2 leaves)
-            
             // Around 96-byte boundary (3 leaves)
             ((0..94).map(|i| (i % 256) as u8).collect(), 128), // 94 bytes (under 3 leaves)
             ((0..95).map(|i| (i % 256) as u8).collect(), 128), // 95 bytes (just under 3 leaves)
             ((0..96).map(|i| (i % 256) as u8).collect(), 128), // 96 bytes (exactly 3 leaves)
             ((0..97).map(|i| (i % 256) as u8).collect(), 128), // 97 bytes (just over 3 leaves)
             ((0..99).map(|i| (i % 256) as u8).collect(), 128), // 99 bytes (over 3 leaves)
-            
             // Around 128-byte boundary (4 leaves)
             (vec![200; 126], 160), // 126 bytes (under 4 leaves)
             (vec![201; 127], 160), // 127 bytes (just under 4 leaves)
             (vec![202; 128], 160), // 128 bytes (exactly 4 leaves)
             (vec![203; 129], 160), // 129 bytes (just over 4 leaves)
             ((100..230).map(|i| (i % 256) as u8).collect(), 160), // 130 bytes (over 4 leaves)
-            
             // Larger boundaries - 160 bytes (5 leaves)
             ((0..158).map(|i| (i % 256) as u8).collect(), 192), // 158 bytes (under 5 leaves)
             ((0..160).map(|i| (i % 256) as u8).collect(), 192), // 160 bytes (exactly 5 leaves)
             ((0..162).map(|i| (i % 256) as u8).collect(), 192), // 162 bytes (over 5 leaves)
-            
             // Test non-full at various capacities
-            (vec![42; 3], 64),   // small non-full
-            (vec![99; 50], 128), // mid-size non-full
+            (vec![42; 3], 64),    // small non-full
+            (vec![99; 50], 128),  // mid-size non-full
             (vec![77; 100], 192), // larger non-full
         ];
 
