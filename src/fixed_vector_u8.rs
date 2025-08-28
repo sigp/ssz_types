@@ -1,9 +1,10 @@
+use crate::tree_hash::vec_tree_hash_root;
 use crate::{Error, FixedVector};
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
-use tree_hash::{merkle_root, Hash256};
+use tree_hash::Hash256;
 use typenum::Unsigned;
 
 pub use typenum;
@@ -136,7 +137,7 @@ impl<N: Unsigned> tree_hash::TreeHash for FixedVectorU8<N> {
     }
 
     fn tree_hash_root(&self) -> Hash256 {
-        merkle_root(self, 0)
+        vec_tree_hash_root::<u8>(&self.inner, N::to_usize())
     }
 }
 
@@ -330,7 +331,23 @@ mod test {
 
     #[test]
     fn tree_hash_consistency() {
-        let test_vectors = vec![vec![], vec![0], vec![0; 8], vec![42; 16], (0..16).collect()];
+        // Tree hashing uses 32-byte leaves, so test around these boundaries
+        let test_vectors = vec![
+            vec![], // 0 bytes
+            vec![0], // 1 byte
+            vec![0; 8], // 8 bytes
+            vec![0; 16], // 16 bytes
+            vec![0; 31], // 31 bytes (just under 32)
+            vec![0; 32], // 32 bytes (exactly one leaf)
+            vec![0; 33], // 33 bytes (just over one leaf)
+            vec![42; 63], // 63 bytes (just under 2 leaves)
+            vec![42; 64], // 64 bytes (exactly 2 leaves)
+            vec![42; 65], // 65 bytes (just over 2 leaves)
+            vec![255; 95], // 95 bytes (just under 3 leaves)
+            vec![255; 96], // 96 bytes (exactly 3 leaves)
+            vec![128; 128], // 128 bytes (exactly 4 leaves)
+            (0..160).map(|i| (i % 256) as u8).collect(), // 160 bytes (5 leaves)
+        ];
 
         for test_data in test_vectors {
             let len = test_data.len();
@@ -353,6 +370,56 @@ mod test {
                 16 => {
                     let original = FixedVector::<u8, U16>::try_from(test_data.clone()).unwrap();
                     let u8_variant = FixedVectorU8::<U16>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                31 => {
+                    let original = FixedVector::<u8, U31>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U31>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                32 => {
+                    let original = FixedVector::<u8, U32>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U32>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                33 => {
+                    let original = FixedVector::<u8, U33>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U33>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                63 => {
+                    let original = FixedVector::<u8, U63>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U63>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                64 => {
+                    let original = FixedVector::<u8, U64>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U64>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                65 => {
+                    let original = FixedVector::<u8, U65>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U65>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                95 => {
+                    let original = FixedVector::<u8, U95>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U95>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                96 => {
+                    let original = FixedVector::<u8, U96>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U96>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                128 => {
+                    let original = FixedVector::<u8, U128>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U128>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                160 => {
+                    let original = FixedVector::<u8, U160>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U160>::try_from(test_data).unwrap();
                     assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
                 }
                 _ => {}
