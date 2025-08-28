@@ -39,14 +39,18 @@
 
 #[macro_use]
 mod fixed_vector;
+mod fixed_vector_u8;
 pub mod serde_utils;
 mod tree_hash;
 mod variable_list;
+mod variable_list_u8;
 
 pub use fixed_vector::FixedVector;
+pub use fixed_vector_u8::FixedVectorU8;
 pub use ssz::{BitList, BitVector, Bitfield};
 pub use typenum;
 pub use variable_list::VariableList;
+pub use variable_list_u8::VariableListU8;
 
 pub mod length {
     pub use ssz::{Fixed, Variable};
