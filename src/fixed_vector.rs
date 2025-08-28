@@ -1,5 +1,5 @@
-use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
+use crate::tree_hash::vec_tree_hash_root;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::marker::PhantomData;
@@ -312,13 +312,19 @@ where
                 )));
             }
 
-            let vec = bytes.chunks(T::ssz_fixed_len()).try_fold(
-                Vec::with_capacity(num_items),
-                |mut vec, chunk| {
-                    vec.push(T::from_ssz_bytes(chunk)?);
-                    Ok(vec)
-                },
-            )?;
+            if bytes.len() != num_items * T::ssz_fixed_len() {
+                return Err(ssz::DecodeError::BytesInvalid(format!(
+                    "FixedVector of {} items has {} bytes",
+                    num_items,
+                    bytes.len()
+                )));
+            }
+
+            let mut vec = Vec::with_capacity(num_items);
+            for chunk in bytes.chunks_exact(T::ssz_fixed_len()) {
+                vec.push(T::from_ssz_bytes(chunk)?);
+            }
+
             Self::new(vec).map_err(|e| {
                 ssz::DecodeError::BytesInvalid(format!(
                     "Wrong number of FixedVector elements: {:?}",
@@ -381,7 +387,7 @@ mod test {
     use super::*;
     use ssz::*;
     use std::collections::HashSet;
-    use tree_hash::{merkle_root, TreeHash};
+    use tree_hash::{TreeHash, merkle_root};
     use tree_hash_derive::TreeHash;
     use typenum::*;
 
