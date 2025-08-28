@@ -1,10 +1,9 @@
-use crate::tree_hash::vec_tree_hash_root;
 use crate::{Error, VariableList};
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
-use tree_hash::Hash256;
+use tree_hash::{merkle_root, Hash256, HASHSIZE};
 use typenum::Unsigned;
 
 pub use typenum;
@@ -141,7 +140,7 @@ impl<N: Unsigned> tree_hash::TreeHash for VariableListU8<N> {
     }
 
     fn tree_hash_root(&self) -> Hash256 {
-        let root = vec_tree_hash_root::<u8>(&self.inner, N::to_usize());
+        let root = merkle_root(self, N::to_usize().div_ceil(HASHSIZE));
         tree_hash::mix_in_length(&root, self.len())
     }
 }
