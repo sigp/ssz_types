@@ -140,7 +140,7 @@ impl<N: Unsigned> tree_hash::TreeHash for VariableListU8<N> {
     }
 
     fn tree_hash_root(&self) -> Hash256 {
-        let root = merkle_root(&self, 0);
+        let root = merkle_root(self, 0);
         tree_hash::mix_in_length(&root, self.len())
     }
 }
@@ -216,125 +216,380 @@ mod test {
     use super::*;
     use ssz::*;
     use std::collections::HashSet;
-    use tree_hash::{merkle_root, TreeHash};
+    use tree_hash::TreeHash;
     use typenum::*;
 
-    #[test]
-    fn new() {
-        let vec = vec![42; 5];
-        let fixed: Result<VariableListU8<U4>, _> = VariableListU8::new(vec);
-        assert!(fixed.is_err());
+    fn test_equivalent_behavior<N: Unsigned>(test_vectors: Vec<Vec<u8>>) {
+        for vec in test_vectors {
+            let original_result = VariableList::<u8, N>::new(vec.clone());
+            let u8_result = VariableListU8::<N>::new(vec);
 
-        let vec = vec![42; 3];
-        let fixed: Result<VariableListU8<U4>, _> = VariableListU8::new(vec);
-        assert!(fixed.is_ok());
+            match (original_result, u8_result) {
+                (Ok(original), Ok(u8_variant)) => {
+                    // Test basic properties
+                    assert_eq!(original.len(), u8_variant.len());
+                    assert_eq!(original.is_empty(), u8_variant.is_empty());
+                    assert_eq!(&original[..], &u8_variant[..]);
 
-        let vec = vec![42; 4];
-        let fixed: Result<VariableListU8<U4>, _> = VariableListU8::new(vec);
-        assert!(fixed.is_ok());
+                    // Test trait implementations
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                    assert_eq!(original.ssz_bytes_len(), u8_variant.ssz_bytes_len());
+
+                    // Test conversion back to Vec
+                    let original_vec: Vec<u8> = original.into();
+                    let u8_vec: Vec<u8> = u8_variant.into();
+                    assert_eq!(original_vec, u8_vec);
+                }
+                (Err(original_err), Err(u8_err)) => {
+                    assert_eq!(original_err, u8_err);
+                }
+                _ => panic!("Results should both succeed or both fail"),
+            }
+        }
     }
 
     #[test]
-    fn indexing() {
-        let vec = vec![1, 2];
+    fn construction_and_basic_operations() {
+        test_equivalent_behavior::<U4>(vec![
+            vec![42; 5], // too long
+            vec![42; 3], // within limits
+            vec![42; 4], // at max length
+            vec![],      // empty
+            vec![1, 2, 3, 4], // at max length with different values
+        ]);
 
-        let mut fixed: VariableListU8<U8192> = vec.clone().try_into().unwrap();
+        test_equivalent_behavior::<U0>(vec![
+            vec![], // correct (empty)
+            vec![1], // too long
+        ]);
 
-        assert_eq!(fixed[0], 1);
-        assert_eq!(&fixed[0..1], &vec[0..1]);
-        assert_eq!((fixed[..]).len(), 2);
-
-        fixed[1] = 3;
-        assert_eq!(fixed[1], 3);
+        // Test various lengths - comprehensive non-full testing
+        test_equivalent_behavior::<U8>(vec![
+            vec![],                           // empty
+            vec![1],                          // length 1
+            vec![1, 2],                       // length 2  
+            vec![1, 2, 3],                    // length 3
+            vec![1, 2, 3, 4],                 // length 4
+            vec![1, 2, 3, 4, 5],              // length 5
+            vec![1, 2, 3, 4, 5, 6],           // length 6
+            vec![1, 2, 3, 4, 5, 6, 7],        // length 7
+            vec![1, 2, 3, 4, 5, 6, 7, 8],     // at max length
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9],  // too long
+        ]);
+        
+        // Test non-full lists with different patterns
+        test_equivalent_behavior::<U16>(vec![
+            vec![],
+            vec![255],                        // single byte, max value
+            vec![0, 255],                     // min/max pair
+            vec![128; 3],                     // repeated middle value
+            vec![1, 2, 3, 4, 5],              // ascending sequence
+            vec![5, 4, 3, 2, 1],              // descending sequence
+            (0..10).collect(),                // length 10 (non-full)
+            (0..15).collect(),                // length 15 (almost full)
+            (0..16).collect(),                // length 16 (at max)
+        ]);
     }
 
     #[test]
-    fn length() {
-        let vec = vec![42; 5];
-        let err = VariableListU8::<U4>::try_from(vec.clone()).unwrap_err();
-        assert_eq!(err, Error::OutOfBounds { i: 5, len: 4 });
+    fn indexing_and_deref() {
+        let test_data = vec![0, 2, 4, 6];
+        let original = VariableList::<u8, U4>::try_from(test_data.clone()).unwrap();
+        let u8_variant = VariableListU8::<U4>::try_from(test_data).unwrap();
 
-        let vec = vec![42; 3];
-        let fixed: VariableListU8<U4> = VariableListU8::try_from(vec.clone()).unwrap();
-        assert_eq!(&fixed[0..3], &vec[..]);
-        assert_eq!(&fixed[..], &vec![42, 42, 42][..]);
+        // Test indexing
+        assert_eq!(original[0], u8_variant[0]);
+        assert_eq!(original[3], u8_variant[3]);
+        assert_eq!(&original[0..2], &u8_variant[0..2]);
 
-        let vec = vec![];
-        let fixed: VariableListU8<U4> = VariableListU8::try_from(vec).unwrap();
-        assert_eq!(&fixed[..], &[] as &[u8]);
+        // Test deref operations
+        assert_eq!(original.first(), u8_variant.first());
+        assert_eq!(original.last(), u8_variant.last());
+        assert_eq!(original.get(3), u8_variant.get(3));
+        assert_eq!(original.get(4), u8_variant.get(4));
     }
 
     #[test]
-    fn deref() {
-        let vec = vec![0, 2, 4, 6];
-        let fixed: VariableListU8<U4> = VariableListU8::try_from(vec).unwrap();
+    fn mutable_operations() {
+        let test_data = vec![1, 2, 3];
+        let mut original = VariableList::<u8, U4>::try_from(test_data.clone()).unwrap();
+        let mut u8_variant = VariableListU8::<U4>::try_from(test_data).unwrap();
 
-        assert_eq!(fixed.first(), Some(&0));
-        assert_eq!(fixed.get(3), Some(&6));
-        assert_eq!(fixed.get(4), None);
+        // Test mutable indexing
+        original[1] = 99;
+        u8_variant[1] = 99;
+        assert_eq!(&original[..], &u8_variant[..]);
+
+        // Test push operation
+        let push_original = original.push(88);
+        let push_u8 = u8_variant.push(88);
+        
+        match (push_original, push_u8) {
+            (Ok(()), Ok(())) => {
+                assert_eq!(&original[..], &u8_variant[..]);
+                assert_eq!(original.len(), u8_variant.len());
+            }
+            (Err(original_err), Err(u8_err)) => {
+                assert_eq!(original_err, u8_err);
+            }
+            _ => panic!("Push results should match"),
+        }
     }
 
     #[test]
-    fn encode() {
-        let vec: VariableListU8<U2> = vec![0; 2].try_into().unwrap();
-        assert_eq!(vec.as_ssz_bytes(), vec![0, 0]);
-        assert_eq!(<VariableListU8<U2> as Encode>::ssz_fixed_len(), 4);
-    }
+    fn push_behavior() {
+        let mut original = VariableList::<u8, U3>::empty();
+        let mut u8_variant = VariableListU8::<U3>::empty();
 
-    fn round_trip<T: Encode + Decode + std::fmt::Debug + PartialEq>(item: T) {
-        let encoded = &item.as_ssz_bytes();
-        assert_eq!(item.ssz_bytes_len(), encoded.len());
-        assert_eq!(T::from_ssz_bytes(encoded), Ok(item));
-    }
-
-    #[test]
-    fn u8_len_8() {
-        round_trip::<VariableListU8<U8>>(vec![42; 8].try_into().unwrap());
-        round_trip::<VariableListU8<U8>>(vec![0; 8].try_into().unwrap());
-        round_trip::<VariableListU8<U8>>(vec![].try_into().unwrap());
-    }
-
-    #[test]
-    fn ssz_empty_list() {
-        let empty_list = VariableListU8::<U8>::default();
-        let bytes = empty_list.as_ssz_bytes();
-        assert!(bytes.is_empty());
-        assert_eq!(VariableListU8::from_ssz_bytes(&[]).unwrap(), empty_list);
-    }
-
-    fn root_with_length(bytes: &[u8], len: usize) -> Hash256 {
-        let root = merkle_root(bytes, 0);
-        tree_hash::mix_in_length(&root, len)
-    }
-
-    #[test]
-    fn tree_hash_u8() {
-        let fixed: VariableListU8<U0> = VariableListU8::try_from(vec![]).unwrap();
-        assert_eq!(fixed.tree_hash_root(), root_with_length(&[0; 8], 0));
-
-        for i in 0..=1 {
-            let fixed: VariableListU8<U1> = VariableListU8::try_from(vec![0; i]).unwrap();
-            assert_eq!(fixed.tree_hash_root(), root_with_length(&vec![0; i], i));
+        // Push until full
+        for i in 0..3 {
+            let push_original = original.push(i);
+            let push_u8 = u8_variant.push(i);
+            assert_eq!(push_original, push_u8);
+            assert!(push_original.is_ok());
+            assert_eq!(&original[..], &u8_variant[..]);
         }
 
-        for i in 0..=8 {
-            let fixed: VariableListU8<U8> = VariableListU8::try_from(vec![0; i]).unwrap();
-            assert_eq!(fixed.tree_hash_root(), root_with_length(&vec![0; i], i));
+        // Try to push past capacity
+        let push_original = original.push(99);
+        let push_u8 = u8_variant.push(99);
+        assert_eq!(push_original, push_u8);
+        assert!(push_original.is_err());
+    }
+
+    #[test]
+    fn iterator_behavior() {
+        let test_data = vec![1, 2, 3, 4];
+        let original = VariableList::<u8, U8>::try_from(test_data.clone()).unwrap();
+        let u8_variant = VariableListU8::<U8>::try_from(test_data).unwrap();
+
+        // Test borrowed iterator
+        let original_sum: u8 = (&original).into_iter().sum();
+        let u8_sum: u8 = (&u8_variant).into_iter().sum();
+        assert_eq!(original_sum, u8_sum);
+
+        // Test owned iterator (consume clones)
+        let original_sum: u8 = original.clone().into_iter().sum();
+        let u8_sum: u8 = u8_variant.clone().into_iter().sum();
+        assert_eq!(original_sum, u8_sum);
+    }
+
+    #[test]
+    fn ssz_encoding() {
+        let test_vectors = vec![
+            vec![], // empty
+            vec![0],                          // length 1
+            vec![0; 2],                       // length 2
+            vec![255],                        // single max value
+            vec![1, 2, 3],                    // length 3
+            vec![42; 5],                      // length 5
+            vec![42; 8],                      // length 8
+            vec![255, 128, 64, 32],           // length 4 with varied values
+            vec![0, 1, 2, 3, 4, 5, 6],        // length 7
+            (0..10).collect(),                // length 10
+            (0..12).collect(),                // length 12
+            (0..16).collect(),                // length 16 (full)
+        ];
+
+        for test_data in test_vectors {
+            let len = test_data.len();
+            if len <= 16 {
+                let original = VariableList::<u8, U16>::try_from(test_data.clone()).unwrap();
+                let u8_variant = VariableListU8::<U16>::try_from(test_data).unwrap();
+                
+                assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                assert_eq!(original.ssz_bytes_len(), u8_variant.ssz_bytes_len());
+                assert_eq!(<VariableList<u8, U16> as ssz::Encode>::is_ssz_fixed_len(), <VariableListU8<U16> as ssz::Encode>::is_ssz_fixed_len());
+            }
+        }
+    }
+
+    #[test]
+    fn ssz_round_trip() {
+        let test_vectors = vec![
+            vec![],                    // empty
+            vec![1],                   // length 1
+            vec![1, 2, 3],             // length 3 (non-full)
+            vec![1, 2, 3, 4],          // length 4 (non-full)
+            vec![255, 0, 128],         // length 3 with edge values
+            vec![42; 5],               // length 5 (non-full)
+            vec![42; 8],               // length 8 (full)
+        ];
+
+        for test_data in test_vectors {
+            let original = VariableList::<u8, U8>::try_from(test_data.clone()).unwrap();
+            let u8_variant = VariableListU8::<U8>::try_from(test_data).unwrap();
+
+            let original_encoded = original.as_ssz_bytes();
+            let u8_encoded = u8_variant.as_ssz_bytes();
+            assert_eq!(original_encoded, u8_encoded);
+
+            let original_decoded = VariableList::<u8, U8>::from_ssz_bytes(&original_encoded).unwrap();
+            let u8_decoded = VariableListU8::<U8>::from_ssz_bytes(&u8_encoded).unwrap();
+            
+            assert_eq!(&original_decoded[..], &u8_decoded[..]);
+            assert_eq!(original, original_decoded);
+            assert_eq!(u8_variant, u8_decoded);
+        }
+    }
+
+    #[test]
+    fn empty_list_handling() {
+        let original_empty = VariableList::<u8, U8>::default();
+        let u8_empty = VariableListU8::<U8>::default();
+        
+        assert_eq!(original_empty.len(), u8_empty.len());
+        assert_eq!(original_empty.is_empty(), u8_empty.is_empty());
+        assert_eq!(&original_empty[..], &u8_empty[..]);
+        
+        // Test SSZ encoding of empty lists
+        let original_bytes = original_empty.as_ssz_bytes();
+        let u8_bytes = u8_empty.as_ssz_bytes();
+        assert_eq!(original_bytes, u8_bytes);
+        assert!(original_bytes.is_empty());
+        
+        // Test decoding empty lists
+        let original_decoded = VariableList::<u8, U8>::from_ssz_bytes(&[]).unwrap();
+        let u8_decoded = VariableListU8::<U8>::from_ssz_bytes(&[]).unwrap();
+        assert_eq!(original_decoded, original_empty);
+        assert_eq!(u8_decoded, u8_empty);
+    }
+
+    #[test]
+    fn tree_hash_consistency() {
+        let test_vectors = vec![
+            (vec![], 0),
+            (vec![0], 1),
+            (vec![0; 3], 8),              // non-full length 3
+            (vec![42; 5], 8),             // non-full length 5
+            (vec![0; 8], 8),              // full length 8
+            (vec![1, 2, 3], 8),           // non-full with varied data
+            (vec![255; 7], 8),            // non-full with max values
+            (vec![42; 10], 16),           // non-full length 10
+            (vec![42; 16], 16),           // full length 16
+            ((0..5).collect(), 16),       // non-full ascending sequence
+            ((0..12).collect(), 16),      // non-full longer sequence
+            ((0..16).collect(), 16),      // full ascending sequence
+        ];
+
+        for (test_data, max_len) in test_vectors {
+            match max_len {
+                0 => {
+                    let original = VariableList::<u8, U0>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = VariableListU8::<U0>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                1 => {
+                    let original = VariableList::<u8, U1>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = VariableListU8::<U1>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                8 => {
+                    let original = VariableList::<u8, U8>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = VariableListU8::<U8>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                16 => {
+                    let original = VariableList::<u8, U16>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = VariableListU8::<U16>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn hash_and_equality() {
+        let test_data1 = vec![3; 8];
+        let test_data2 = vec![4; 8];
+        
+        let original1 = VariableList::<u8, U16>::try_from(test_data1.clone()).unwrap();
+        let original2 = VariableList::<u8, U16>::try_from(test_data2.clone()).unwrap();
+        let u8_variant1 = VariableListU8::<U16>::try_from(test_data1).unwrap();
+        let u8_variant2 = VariableListU8::<U16>::try_from(test_data2).unwrap();
+
+        // Test equality
+        assert_eq!(original1 == original2, u8_variant1 == u8_variant2);
+        assert_ne!(original1, original2);
+        assert_ne!(u8_variant1, u8_variant2);
+
+        // Test equal cases
+        let test_data3 = vec![3; 8];
+        let original3 = VariableList::<u8, U16>::try_from(test_data3.clone()).unwrap();
+        let u8_variant3 = VariableListU8::<U16>::try_from(test_data3).unwrap();
+        assert_eq!(original1, original3);
+        assert_eq!(u8_variant1, u8_variant3);
+
+        // Test hash behavior
+        let mut original_set = HashSet::new();
+        let mut u8_set = HashSet::new();
+
+        assert!(original_set.insert(original1.clone()));
+        assert!(u8_set.insert(u8_variant1.clone()));
+        assert!(!original_set.insert(original1.clone()));
+        assert!(!u8_set.insert(u8_variant1.clone()));
+
+        assert!(original_set.contains(&original1));
+        assert!(u8_set.contains(&u8_variant1));
+
+        assert_eq!(original_set.len(), u8_set.len());
+    }
+
+    #[test]
+    fn serde_behavior() {
+        // Test successful deserialization with various lengths
+        for json_data in [
+            serde_json::json!([]),
+            serde_json::json!([1]),
+            serde_json::json!([1, 2, 3]),
+            serde_json::json!([1, 2, 3, 4]),
+        ] {
+            let original_result: Result<VariableList<u8, U4>, _> = serde_json::from_value(json_data.clone());
+            let u8_result: Result<VariableListU8<U4>, _> = serde_json::from_value(json_data);
+            
+            match (original_result, u8_result) {
+                (Ok(original), Ok(u8_variant)) => {
+                    assert_eq!(&original[..], &u8_variant[..]);
+                }
+                (Err(_), Err(_)) => {} // Both should fail in same cases
+                _ => panic!("Serde results should match"),
+            }
         }
 
-        for i in 0..=13 {
-            let fixed: VariableListU8<U13> = VariableListU8::try_from(vec![0; i]).unwrap();
-            assert_eq!(fixed.tree_hash_root(), root_with_length(&vec![0; i], i));
-        }
+        // Test failed deserialization - too long
+        let json_too_long = serde_json::json!([1, 2, 3, 4, 5]);
+        let original_result: Result<VariableList<u8, U4>, _> = serde_json::from_value(json_too_long.clone());
+        let u8_result: Result<VariableListU8<U4>, _> = serde_json::from_value(json_too_long);
+        
+        assert!(original_result.is_err());
+        assert!(u8_result.is_err());
+    }
 
-        for i in 0..=16 {
-            let fixed: VariableListU8<U16> = VariableListU8::try_from(vec![0; i]).unwrap();
-            assert_eq!(fixed.tree_hash_root(), root_with_length(&vec![0; i], i));
-        }
+    #[test]
+    fn try_from_iter() {
+        let test_vectors = vec![
+            vec![],
+            vec![1, 2, 3],
+            vec![1, 2, 3, 4],
+            vec![1, 2, 3, 4, 5], // Should fail for max_len 4
+        ];
 
-        let source: Vec<u8> = (0..16).collect();
-        let fixed: VariableListU8<U16> = VariableListU8::try_from(source.clone()).unwrap();
-        assert_eq!(fixed.tree_hash_root(), root_with_length(&source, 16));
+        for data in test_vectors {
+            let original_result = VariableList::<u8, U4>::try_from_iter(data.clone());
+            let u8_result = VariableListU8::<U4>::try_from_iter(data);
+            
+            match (original_result, u8_result) {
+                (Ok(original), Ok(u8_variant)) => {
+                    assert_eq!(&original[..], &u8_variant[..]);
+                }
+                (Err(original_err), Err(u8_err)) => {
+                    assert_eq!(original_err, u8_err);
+                }
+                _ => panic!("Both should succeed or both should fail"),
+            }
+        }
     }
 
     #[test]
@@ -363,7 +618,6 @@ mod test {
         }
 
         type N = U1099511627776;
-        type List = VariableListU8<N>;
 
         let iter = iter::repeat(1).take(5);
         let wonky_iter = WonkyIterator {
@@ -371,39 +625,81 @@ mod test {
             iter: iter.clone(),
         };
 
-        assert_eq!(
-            List::try_from_iter(iter).unwrap(),
-            List::try_from_iter(wonky_iter).unwrap()
-        );
+        let original_result = VariableList::<u8, N>::try_from_iter(iter);
+        let u8_result = VariableListU8::<N>::try_from_iter(wonky_iter);
+        
+        assert!(original_result.is_ok());
+        assert!(u8_result.is_ok());
+        assert_eq!(&original_result.unwrap()[..], &u8_result.unwrap()[..]);
     }
 
     #[test]
-    fn std_hash() {
-        let x: VariableListU8<U16> = VariableListU8::try_from(vec![3; 16]).unwrap();
-        let y: VariableListU8<U16> = VariableListU8::try_from(vec![4; 16]).unwrap();
-        let mut hashset = HashSet::new();
+    fn max_len_property() {
+        assert_eq!(VariableList::<u8, U4>::max_len(), VariableListU8::<U4>::max_len());
+        assert_eq!(VariableList::<u8, U8>::max_len(), VariableListU8::<U8>::max_len());
+        assert_eq!(VariableList::<u8, U16>::max_len(), VariableListU8::<U16>::max_len());
+    }
 
-        for value in [x.clone(), y.clone()] {
-            assert!(hashset.insert(value.clone()));
-            assert!(!hashset.insert(value.clone()));
-            assert!(hashset.contains(&value));
+    #[test]
+    fn non_full_lists_comprehensive() {
+        // Test a variety of non-full lists with different capacities and sizes
+        let test_cases = vec![
+            // (data, max_capacity)
+            (vec![1], 4),
+            (vec![1, 2], 4),
+            (vec![1, 2, 3], 4),
+            (vec![255], 8),
+            (vec![0, 128, 255], 8),
+            (vec![42; 5], 8),
+            (vec![1, 2, 3, 4, 5, 6, 7], 8),
+            (vec![100; 3], 16),
+            ((0..7).collect(), 16),
+            ((10..20).collect(), 16),
+            (vec![0, 255, 0, 255, 0], 16),
+        ];
+
+        for (test_data, max_cap) in test_cases {
+            match max_cap {
+                4 => {
+                    let original = VariableList::<u8, U4>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = VariableListU8::<U4>::try_from(test_data.clone()).unwrap();
+                    
+                    // Verify the list is not at max capacity
+                    assert!(original.len() < VariableList::<u8, U4>::max_len(), 
+                           "Test data should be non-full: len={}, max={}", 
+                           original.len(), VariableList::<u8, U4>::max_len());
+                    
+                    // Test all behaviors are equivalent
+                    assert_eq!(&original[..], &u8_variant[..]);
+                    assert_eq!(original.len(), u8_variant.len());
+                    assert_eq!(original.is_empty(), u8_variant.is_empty());
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                }
+                8 => {
+                    let original = VariableList::<u8, U8>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = VariableListU8::<U8>::try_from(test_data.clone()).unwrap();
+                    
+                    assert!(original.len() < VariableList::<u8, U8>::max_len());
+                    assert_eq!(&original[..], &u8_variant[..]);
+                    assert_eq!(original.len(), u8_variant.len());
+                    assert_eq!(original.is_empty(), u8_variant.is_empty());
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                }
+                16 => {
+                    let original = VariableList::<u8, U16>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = VariableListU8::<U16>::try_from(test_data.clone()).unwrap();
+                    
+                    assert!(original.len() < VariableList::<u8, U16>::max_len());
+                    assert_eq!(&original[..], &u8_variant[..]);
+                    assert_eq!(original.len(), u8_variant.len());
+                    assert_eq!(original.is_empty(), u8_variant.is_empty());
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                }
+                _ => {}
+            }
         }
-        assert_eq!(hashset.len(), 2);
-    }
-
-    #[test]
-    fn serde_invalid_length() {
-        use typenum::U4;
-        let json = serde_json::json!([1, 2, 3, 4, 5]);
-        let result: Result<VariableListU8<U4>, _> = serde_json::from_value(json);
-        assert!(result.is_err());
-
-        let json = serde_json::json!([1, 2, 3]);
-        let result: Result<VariableListU8<U4>, _> = serde_json::from_value(json);
-        assert!(result.is_ok());
-
-        let json = serde_json::json!([1, 2, 3, 4]);
-        let result: Result<VariableListU8<U4>, _> = serde_json::from_value(json);
-        assert!(result.is_ok());
     }
 }

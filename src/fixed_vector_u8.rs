@@ -136,7 +136,7 @@ impl<N: Unsigned> tree_hash::TreeHash for FixedVectorU8<N> {
     }
 
     fn tree_hash_root(&self) -> Hash256 {
-        merkle_root(&self, 0)
+        merkle_root(self, 0)
     }
 }
 
@@ -212,138 +212,287 @@ mod test {
     use super::*;
     use ssz::*;
     use std::collections::HashSet;
-    use tree_hash::{merkle_root, TreeHash};
+    use tree_hash::TreeHash;
     use typenum::*;
 
-    #[test]
-    fn new() {
-        let vec = vec![42; 5];
-        let fixed: Result<FixedVectorU8<U4>, _> = FixedVectorU8::new(vec);
-        assert!(fixed.is_err());
+    fn test_equivalent_behavior<N: Unsigned>(test_vectors: Vec<Vec<u8>>) {
+        for vec in test_vectors {
+            let original_result = FixedVector::<u8, N>::new(vec.clone());
+            let u8_result = FixedVectorU8::<N>::new(vec);
 
-        let vec = vec![42; 3];
-        let fixed: Result<FixedVectorU8<U4>, _> = FixedVectorU8::new(vec);
-        assert!(fixed.is_err());
+            match (original_result, u8_result) {
+                (Ok(original), Ok(u8_variant)) => {
+                    // Test basic properties
+                    assert_eq!(original.len(), u8_variant.len());
+                    assert_eq!(original.is_empty(), u8_variant.is_empty());
+                    assert_eq!(&original[..], &u8_variant[..]);
 
-        let vec = vec![42; 4];
-        let fixed: Result<FixedVectorU8<U4>, _> = FixedVectorU8::new(vec);
-        assert!(fixed.is_ok());
-    }
+                    // Test trait implementations
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                    assert_eq!(original.ssz_bytes_len(), u8_variant.ssz_bytes_len());
 
-    #[test]
-    fn indexing() {
-        let mut vec = vec![1, 2];
-        vec.resize_with(8192, u8::default);
-
-        let mut fixed: FixedVectorU8<U8192> = vec.clone().try_into().unwrap();
-
-        assert_eq!(fixed[0], 1);
-        assert_eq!(&fixed[0..1], &vec[0..1]);
-        assert_eq!((fixed[..]).len(), 8192);
-
-        fixed[1] = 3;
-        assert_eq!(fixed[1], 3);
-    }
-
-    #[test]
-    fn wrong_length() {
-        let vec = vec![42; 5];
-        let err = FixedVectorU8::<U4>::try_from(vec.clone()).unwrap_err();
-        assert_eq!(err, Error::OutOfBounds { i: 5, len: 4 });
-
-        let vec = vec![42; 3];
-        let err = FixedVectorU8::<U4>::try_from(vec.clone()).unwrap_err();
-        assert_eq!(err, Error::OutOfBounds { i: 3, len: 4 });
-
-        let vec = vec![];
-        let err = FixedVectorU8::<U4>::try_from(vec).unwrap_err();
-        assert_eq!(err, Error::OutOfBounds { i: 0, len: 4 });
-    }
-
-    #[test]
-    fn deref() {
-        let vec = vec![0, 2, 4, 6];
-        let fixed: FixedVectorU8<U4> = FixedVectorU8::try_from(vec).unwrap();
-
-        assert_eq!(fixed.first(), Some(&0));
-        assert_eq!(fixed.get(3), Some(&6));
-        assert_eq!(fixed.get(4), None);
-    }
-
-    #[test]
-    fn iterator() {
-        let vec = vec![0, 2, 4, 6];
-        let fixed: FixedVectorU8<U4> = FixedVectorU8::try_from(vec).unwrap();
-
-        assert_eq!((&fixed).into_iter().sum::<u8>(), 12);
-        assert_eq!(fixed.into_iter().sum::<u8>(), 12);
-    }
-
-    #[test]
-    fn ssz_encode() {
-        let vec: FixedVectorU8<U2> = vec![0; 2].try_into().unwrap();
-        assert_eq!(vec.as_ssz_bytes(), vec![0, 0]);
-        assert_eq!(<FixedVectorU8<U2> as Encode>::ssz_fixed_len(), 2);
-    }
-
-    fn ssz_round_trip<T: Encode + Decode + std::fmt::Debug + PartialEq>(item: T) {
-        let encoded = &item.as_ssz_bytes();
-        assert_eq!(item.ssz_bytes_len(), encoded.len());
-        assert_eq!(T::from_ssz_bytes(encoded), Ok(item));
-    }
-
-    #[test]
-    fn ssz_round_trip_u8_len_8() {
-        ssz_round_trip::<FixedVectorU8<U8>>(vec![42; 8].try_into().unwrap());
-        ssz_round_trip::<FixedVectorU8<U8>>(vec![0; 8].try_into().unwrap());
-    }
-
-    #[test]
-    fn tree_hash_u8() {
-        let fixed: FixedVectorU8<U0> = FixedVectorU8::try_from(vec![]).unwrap();
-        assert_eq!(fixed.tree_hash_root(), merkle_root(&[0; 8], 0));
-
-        let fixed: FixedVectorU8<U1> = FixedVectorU8::try_from(vec![0; 1]).unwrap();
-        assert_eq!(fixed.tree_hash_root(), merkle_root(&[0; 8], 0));
-
-        let fixed: FixedVectorU8<U8> = FixedVectorU8::try_from(vec![0; 8]).unwrap();
-        assert_eq!(fixed.tree_hash_root(), merkle_root(&[0; 8], 0));
-
-        let fixed: FixedVectorU8<U16> = FixedVectorU8::try_from(vec![42; 16]).unwrap();
-        assert_eq!(fixed.tree_hash_root(), merkle_root(&[42; 16], 0));
-
-        let source: Vec<u8> = (0..16).collect();
-        let fixed: FixedVectorU8<U16> = FixedVectorU8::try_from(source.clone()).unwrap();
-        assert_eq!(fixed.tree_hash_root(), merkle_root(&source, 0));
-    }
-
-    #[test]
-    fn std_hash() {
-        let x: FixedVectorU8<U16> = FixedVectorU8::try_from(vec![3; 16]).unwrap();
-        let y: FixedVectorU8<U16> = FixedVectorU8::try_from(vec![4; 16]).unwrap();
-        let mut hashset = HashSet::new();
-
-        for value in [x.clone(), y.clone()] {
-            assert!(hashset.insert(value.clone()));
-            assert!(!hashset.insert(value.clone()));
-            assert!(hashset.contains(&value));
+                    // Test conversion back to Vec
+                    let original_vec: Vec<u8> = original.into();
+                    let u8_vec: Vec<u8> = u8_variant.into();
+                    assert_eq!(original_vec, u8_vec);
+                }
+                (Err(original_err), Err(u8_err)) => {
+                    assert_eq!(original_err, u8_err);
+                }
+                _ => panic!("Results should both succeed or both fail"),
+            }
         }
-        assert_eq!(hashset.len(), 2);
     }
 
     #[test]
-    fn serde_invalid_length() {
-        use typenum::U4;
-        let json = serde_json::json!([1, 2, 3, 4, 5]);
-        let result: Result<FixedVectorU8<U4>, _> = serde_json::from_value(json);
-        assert!(result.is_err());
+    fn construction_and_basic_operations() {
+        test_equivalent_behavior::<U4>(vec![
+            vec![42; 5], // too long
+            vec![42; 3], // too short
+            vec![42; 4], // correct length
+            vec![],      // empty (too short)
+            vec![1, 2, 3, 4], // correct length with different values
+        ]);
 
-        let json = serde_json::json!([1, 2, 3]);
-        let result: Result<FixedVectorU8<U4>, _> = serde_json::from_value(json);
-        assert!(result.is_err());
+        test_equivalent_behavior::<U0>(vec![
+            vec![], // correct (empty)
+            vec![1], // too long
+        ]);
+    }
 
-        let json = serde_json::json!([1, 2, 3, 4]);
-        let result: Result<FixedVectorU8<U4>, _> = serde_json::from_value(json);
-        assert!(result.is_ok());
+    #[test]
+    fn indexing_and_deref() {
+        let test_data = vec![0, 2, 4, 6];
+        let original = FixedVector::<u8, U4>::try_from(test_data.clone()).unwrap();
+        let u8_variant = FixedVectorU8::<U4>::try_from(test_data).unwrap();
+
+        // Test indexing
+        assert_eq!(original[0], u8_variant[0]);
+        assert_eq!(original[3], u8_variant[3]);
+        assert_eq!(&original[0..2], &u8_variant[0..2]);
+
+        // Test deref operations
+        assert_eq!(original.first(), u8_variant.first());
+        assert_eq!(original.last(), u8_variant.last());
+        assert_eq!(original.get(3), u8_variant.get(3));
+        assert_eq!(original.get(4), u8_variant.get(4));
+    }
+
+    #[test]
+    fn mutable_operations() {
+        let test_data = vec![1, 2, 3, 4];
+        let mut original = FixedVector::<u8, U4>::try_from(test_data.clone()).unwrap();
+        let mut u8_variant = FixedVectorU8::<U4>::try_from(test_data).unwrap();
+
+        original[1] = 99;
+        u8_variant[1] = 99;
+
+        assert_eq!(&original[..], &u8_variant[..]);
+        assert_eq!(original[1], u8_variant[1]);
+    }
+
+    #[test]
+    fn iterator_behavior() {
+        let test_data = vec![1, 2, 3, 4];
+        let original = FixedVector::<u8, U4>::try_from(test_data.clone()).unwrap();
+        let u8_variant = FixedVectorU8::<U4>::try_from(test_data).unwrap();
+
+        // Test borrowed iterator
+        let original_sum: u8 = (&original).into_iter().sum();
+        let u8_sum: u8 = (&u8_variant).into_iter().sum();
+        assert_eq!(original_sum, u8_sum);
+
+        // Test owned iterator (consume clones)
+        let original_sum: u8 = original.clone().into_iter().sum();
+        let u8_sum: u8 = u8_variant.clone().into_iter().sum();
+        assert_eq!(original_sum, u8_sum);
+    }
+
+    #[test]
+    fn ssz_encoding() {
+        let test_vectors = vec![
+            vec![0; 2],
+            vec![42; 8],
+            vec![255, 128, 64, 32],
+            (0..16).collect(),
+        ];
+
+        for test_data in test_vectors {
+            let len = test_data.len();
+            match len {
+                2 => {
+                    let original = FixedVector::<u8, U2>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U2>::try_from(test_data).unwrap();
+                    
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                    assert_eq!(original.ssz_bytes_len(), u8_variant.ssz_bytes_len());
+                    assert_eq!(<FixedVector<u8, U2> as ssz::Encode>::ssz_fixed_len(), <FixedVectorU8<U2> as ssz::Encode>::ssz_fixed_len());
+                }
+                4 => {
+                    let original = FixedVector::<u8, U4>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U4>::try_from(test_data).unwrap();
+                    
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                    assert_eq!(original.ssz_bytes_len(), u8_variant.ssz_bytes_len());
+                }
+                8 => {
+                    let original = FixedVector::<u8, U8>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U8>::try_from(test_data).unwrap();
+                    
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                    assert_eq!(original.ssz_bytes_len(), u8_variant.ssz_bytes_len());
+                }
+                16 => {
+                    let original = FixedVector::<u8, U16>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U16>::try_from(test_data).unwrap();
+                    
+                    assert_eq!(original.as_ssz_bytes(), u8_variant.as_ssz_bytes());
+                    assert_eq!(original.ssz_bytes_len(), u8_variant.ssz_bytes_len());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn ssz_round_trip() {
+        let test_data = vec![42; 8];
+        let original = FixedVector::<u8, U8>::try_from(test_data.clone()).unwrap();
+        let u8_variant = FixedVectorU8::<U8>::try_from(test_data).unwrap();
+
+        let original_encoded = original.as_ssz_bytes();
+        let u8_encoded = u8_variant.as_ssz_bytes();
+        assert_eq!(original_encoded, u8_encoded);
+
+        let original_decoded = FixedVector::<u8, U8>::from_ssz_bytes(&original_encoded).unwrap();
+        let u8_decoded = FixedVectorU8::<U8>::from_ssz_bytes(&u8_encoded).unwrap();
+        
+        assert_eq!(&original_decoded[..], &u8_decoded[..]);
+        assert_eq!(original, original_decoded);
+        assert_eq!(u8_variant, u8_decoded);
+    }
+
+    #[test]
+    fn tree_hash_consistency() {
+        let test_vectors = vec![
+            vec![],
+            vec![0],
+            vec![0; 8],
+            vec![42; 16],
+            (0..16).collect(),
+        ];
+
+        for test_data in test_vectors {
+            let len = test_data.len();
+            match len {
+                0 => {
+                    let original = FixedVector::<u8, U0>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U0>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                1 => {
+                    let original = FixedVector::<u8, U1>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U1>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                8 => {
+                    let original = FixedVector::<u8, U8>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U8>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                16 => {
+                    let original = FixedVector::<u8, U16>::try_from(test_data.clone()).unwrap();
+                    let u8_variant = FixedVectorU8::<U16>::try_from(test_data).unwrap();
+                    assert_eq!(original.tree_hash_root(), u8_variant.tree_hash_root());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn hash_and_equality() {
+        let test_data1 = vec![3; 16];
+        let test_data2 = vec![4; 16];
+        
+        let original1 = FixedVector::<u8, U16>::try_from(test_data1.clone()).unwrap();
+        let original2 = FixedVector::<u8, U16>::try_from(test_data2.clone()).unwrap();
+        let u8_variant1 = FixedVectorU8::<U16>::try_from(test_data1).unwrap();
+        let u8_variant2 = FixedVectorU8::<U16>::try_from(test_data2).unwrap();
+
+        // Test equality
+        assert_eq!(original1 == original2, u8_variant1 == u8_variant2);
+        assert_ne!(original1, original2);
+        assert_ne!(u8_variant1, u8_variant2);
+
+        // Test hash behavior
+        let mut original_set = HashSet::new();
+        let mut u8_set = HashSet::new();
+
+        assert!(original_set.insert(original1.clone()));
+        assert!(u8_set.insert(u8_variant1.clone()));
+        assert!(!original_set.insert(original1.clone()));
+        assert!(!u8_set.insert(u8_variant1.clone()));
+
+        assert!(original_set.contains(&original1));
+        assert!(u8_set.contains(&u8_variant1));
+
+        assert_eq!(original_set.len(), u8_set.len());
+    }
+
+    #[test]
+    fn serde_behavior() {
+        // Test successful deserialization
+        let json_valid = serde_json::json!([1, 2, 3, 4]);
+        let original_result: Result<FixedVector<u8, U4>, _> = serde_json::from_value(json_valid.clone());
+        let u8_result: Result<FixedVectorU8<U4>, _> = serde_json::from_value(json_valid);
+        
+        assert!(original_result.is_ok());
+        assert!(u8_result.is_ok());
+        assert_eq!(&original_result.unwrap()[..], &u8_result.unwrap()[..]);
+
+        // Test failed deserialization - too long
+        let json_too_long = serde_json::json!([1, 2, 3, 4, 5]);
+        let original_result: Result<FixedVector<u8, U4>, _> = serde_json::from_value(json_too_long.clone());
+        let u8_result: Result<FixedVectorU8<U4>, _> = serde_json::from_value(json_too_long);
+        
+        assert!(original_result.is_err());
+        assert!(u8_result.is_err());
+
+        // Test failed deserialization - too short  
+        let json_too_short = serde_json::json!([1, 2, 3]);
+        let original_result: Result<FixedVector<u8, U4>, _> = serde_json::from_value(json_too_short.clone());
+        let u8_result: Result<FixedVectorU8<U4>, _> = serde_json::from_value(json_too_short);
+        
+        assert!(original_result.is_err());
+        assert!(u8_result.is_err());
+    }
+
+    #[test]
+    fn from_elem_constructor() {
+        let original = FixedVector::<u8, U4>::from_elem(42);
+        let u8_variant = FixedVectorU8::<U4>::from_elem(42);
+        
+        assert_eq!(&original[..], &u8_variant[..]);
+        assert_eq!(original.len(), u8_variant.len());
+        assert_eq!(&original[..], &[42, 42, 42, 42]);
+    }
+
+    #[test]
+    fn try_from_iter() {
+        let data = vec![1, 2, 3, 4];
+        let original_result = FixedVector::<u8, U4>::try_from_iter(data.clone());
+        let u8_result = FixedVectorU8::<U4>::try_from_iter(data);
+        
+        match (original_result, u8_result) {
+            (Ok(original), Ok(u8_variant)) => {
+                assert_eq!(&original[..], &u8_variant[..]);
+            }
+            (Err(original_err), Err(u8_err)) => {
+                assert_eq!(original_err, u8_err);
+            }
+            _ => panic!("Both should succeed or both should fail"),
+        }
     }
 }
