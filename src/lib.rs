@@ -88,7 +88,7 @@ impl core::fmt::Display for Error {
             Error::InvalidByteCount { given, expected } => {
                 write!(
                     f,
-                    "Invalid byte count: got {}, expected {}",
+                    "Invalid byte count: given {}, expected {}",
                     given, expected
                 )
             }
