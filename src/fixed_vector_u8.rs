@@ -172,20 +172,17 @@ impl<N: Unsigned> ssz::TryFromIter<u8> for FixedVectorU8<N> {
 
 impl<N: Unsigned> ssz::Decode for FixedVectorU8<N> {
     fn is_ssz_fixed_len() -> bool {
-        u8::is_ssz_fixed_len()
+        true
     }
 
     fn ssz_fixed_len() -> usize {
-        if <Self as ssz::Decode>::is_ssz_fixed_len() {
-            u8::ssz_fixed_len() * N::to_usize()
-        } else {
-            ssz::BYTES_PER_LENGTH_OFFSET
-        }
+        N::to_usize()
     }
 
     fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        let inner = FixedVector::from_ssz_bytes(bytes)?;
-        Ok(Self { inner })
+        FixedVector::new(bytes.to_vec())
+            .map(|inner| Self { inner })
+            .map_err(|e| ssz::DecodeError::BytesInvalid(format!("{e:?}")))
     }
 }
 

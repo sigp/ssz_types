@@ -151,7 +151,7 @@ impl<N: Unsigned> ssz::Encode for VariableListU8<N> {
     }
 
     fn ssz_fixed_len() -> usize {
-        unreachable!("VariableListU8 is not fixed length")
+        ssz::BYTES_PER_LENGTH_OFFSET
     }
 
     fn ssz_bytes_len(&self) -> usize {
@@ -184,8 +184,9 @@ where
     }
 
     fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
-        let inner = VariableList::from_ssz_bytes(bytes)?;
-        Ok(Self { inner })
+        VariableList::new(bytes.to_vec())
+            .map(|inner| Self { inner })
+            .map_err(|e| ssz::DecodeError::BytesInvalid(format!("{e:?}")))
     }
 }
 
