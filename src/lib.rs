@@ -69,3 +69,31 @@ pub enum Error {
         expected: usize,
     },
 }
+
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::OutOfBounds { i, len } => {
+                write!(f, "Index out of bounds: index {}, length {}", i, len)
+            }
+            Error::MissingLengthInformation => {
+                write!(
+                    f,
+                    "BitList does not have a set bit, length cannot be determined"
+                )
+            }
+            Error::ExcessBits => {
+                write!(f, "BitList has excess bits set to true")
+            }
+            Error::InvalidByteCount { given, expected } => {
+                write!(
+                    f,
+                    "Invalid byte count: got {}, expected {}",
+                    given, expected
+                )
+            }
+        }
+    }
+}
+
+impl core::error::Error for Error {}
