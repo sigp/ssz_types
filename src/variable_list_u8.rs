@@ -1,10 +1,9 @@
-use crate::tree_hash::vec_tree_hash_root;
 use crate::{Error, VariableList};
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
-use tree_hash::Hash256;
+use tree_hash::{merkle_root, Hash256};
 use typenum::Unsigned;
 
 pub use typenum;
@@ -141,26 +140,26 @@ impl<N: Unsigned> tree_hash::TreeHash for VariableListU8<N> {
     }
 
     fn tree_hash_root(&self) -> Hash256 {
-        let root = vec_tree_hash_root::<u8>(&self.inner, N::to_usize());
+        let root = merkle_root(&self, 0);
         tree_hash::mix_in_length(&root, self.len())
     }
 }
 
 impl<N: Unsigned> ssz::Encode for VariableListU8<N> {
     fn is_ssz_fixed_len() -> bool {
-        <Vec<u8>>::is_ssz_fixed_len()
+        false
     }
 
     fn ssz_fixed_len() -> usize {
-        <Vec<u8>>::ssz_fixed_len()
+        unreachable!("VariableListU8 is not fixed length")
     }
 
     fn ssz_bytes_len(&self) -> usize {
-        self.inner.ssz_bytes_len()
+        self.len()
     }
 
     fn ssz_append(&self, buf: &mut Vec<u8>) {
-        self.inner.ssz_append(buf)
+        buf.extend_from_slice(&self.inner);
     }
 }
 
@@ -336,7 +335,6 @@ mod test {
         let fixed: VariableListU8<U16> = VariableListU8::try_from(source.clone()).unwrap();
         assert_eq!(fixed.tree_hash_root(), root_with_length(&source, 16));
     }
-
 
     #[test]
     fn large_list_pre_allocation() {

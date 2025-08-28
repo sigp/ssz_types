@@ -1,10 +1,9 @@
-use crate::tree_hash::vec_tree_hash_root;
 use crate::{Error, FixedVector};
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
-use tree_hash::Hash256;
+use tree_hash::{merkle_root, Hash256};
 use typenum::Unsigned;
 
 pub use typenum;
@@ -137,29 +136,25 @@ impl<N: Unsigned> tree_hash::TreeHash for FixedVectorU8<N> {
     }
 
     fn tree_hash_root(&self) -> Hash256 {
-        vec_tree_hash_root::<u8>(&self.inner, N::to_usize())
+        merkle_root(&self, 0)
     }
 }
 
 impl<N: Unsigned> ssz::Encode for FixedVectorU8<N> {
     fn is_ssz_fixed_len() -> bool {
-        u8::is_ssz_fixed_len()
+        true
     }
 
     fn ssz_fixed_len() -> usize {
-        if <Self as ssz::Encode>::is_ssz_fixed_len() {
-            u8::ssz_fixed_len() * N::to_usize()
-        } else {
-            ssz::BYTES_PER_LENGTH_OFFSET
-        }
+        N::to_usize()
     }
 
     fn ssz_bytes_len(&self) -> usize {
-        self.inner.ssz_bytes_len()
+        self.len()
     }
 
     fn ssz_append(&self, buf: &mut Vec<u8>) {
-        self.inner.ssz_append(buf)
+        buf.extend_from_slice(&self.inner);
     }
 }
 
