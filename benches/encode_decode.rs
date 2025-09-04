@@ -1,8 +1,8 @@
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, Criterion};
 use ssz::{Decode, DecodeError, Encode};
 use ssz_types::FixedVector;
 use std::hint::black_box;
-use typenum::{U131072, Unsigned};
+use typenum::{Unsigned, U131072, U16384};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, ssz_derive::Encode)]
 #[ssz(struct_behaviour = "transparent")]
@@ -24,56 +24,37 @@ impl<N: Unsigned> ssz::Decode for ByteVector<N> {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, ssz_derive::Encode)]
-#[ssz(struct_behaviour = "transparent")]
-pub struct FastU8(pub u8);
-
-impl ssz::Decode for FastU8 {
-    #[inline(always)]
-    fn is_ssz_fixed_len() -> bool {
-        true
-    }
-
-    #[inline(always)]
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
-        if bytes.len() == 1 {
-            Ok(FastU8(bytes[0]))
-        } else {
-            Err(DecodeError::BytesInvalid("invalid".to_string()))
-        }
-    }
-
-    #[inline(always)]
-    fn ssz_fixed_len() -> usize {
-        1
-    }
-}
-
 fn benchmark_fixed_vector_decode(c: &mut Criterion) {
     let mut group = c.benchmark_group("decode_fixed_vector");
 
-    let fixed_vector = FixedVector::<u8, U131072>::new(vec![255u8; 131072]).unwrap();
-    let fixed_vector_bytes = fixed_vector.as_ssz_bytes();
+    let fixed_vector_u8 = FixedVector::<u8, U131072>::new(vec![255u8; 131072]).unwrap();
+    let fixed_vector_u64 = FixedVector::<u64, U16384>::new(vec![255u64; 16384]).unwrap();
+    let fixed_vector_bytes = fixed_vector_u8.as_ssz_bytes();
 
-    group.bench_function("u8_128k", |b| {
+    group.bench_function("decode_u8_128k", |b| {
         b.iter(|| {
             let vector = FixedVector::<u8, U131072>::from_ssz_bytes(&fixed_vector_bytes).unwrap();
             black_box(vector);
         });
     });
 
-    group.bench_function("fast_u8_128k", |b| {
+    group.bench_function("decode_byte_u8_128k", |b| {
         b.iter(|| {
-            let vector =
-                FixedVector::<FastU8, U131072>::from_ssz_bytes(&fixed_vector_bytes).unwrap();
+            let vector = ByteVector::<U131072>::from_ssz_bytes(&fixed_vector_bytes).unwrap();
             black_box(vector);
         });
     });
 
-    group.bench_function("byte_u8_128k", |b| {
+    group.bench_function("decode_u64_16k", |b| {
         b.iter(|| {
-            let vector = ByteVector::<U131072>::from_ssz_bytes(&fixed_vector_bytes).unwrap();
+            let vector = FixedVector::<u64, U16384>::from_ssz_bytes(&fixed_vector_bytes).unwrap();
             black_box(vector);
+        });
+    });
+    group.bench_function("encode_u64_16k", |b| {
+        b.iter(|| {
+            let bytes = fixed_vector_u64.as_ssz_bytes();
+            black_box(bytes);
         });
     });
 

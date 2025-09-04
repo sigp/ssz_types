@@ -29,4 +29,8 @@ tree_hash_derive = "0.10.0"
 
 [[bench]]
 harness = false
-name = "decode"
+name = "encode_decode"
+
+[patch.crates-io]
+ethereum_ssz = { path = "../ethereum_ssz/ssz" }
+ethereum_ssz_derive = { path = "../ethereum_ssz/ssz_derive" }
