@@ -3,6 +3,7 @@ use crate::Error;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::marker::PhantomData;
+use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
 use tree_hash::Hash256;
@@ -275,6 +276,13 @@ impl<T, N: Unsigned> ssz::TryFromIter<T> for FixedVector<T, N> {
     }
 }
 
+#[inline(always)]
+pub fn from_ssz_bytes_u8_only<N: Unsigned>(
+    bytes: &[u8],
+) -> Result<FixedVector<u8, N>, ssz::DecodeError> {
+    Ok(FixedVector::new(bytes.to_vec()).unwrap())
+}
+
 impl<T, N: Unsigned> ssz::Decode for FixedVector<T, N>
 where
     T: ssz::Decode,
@@ -299,6 +307,25 @@ where
                 len: 0,
                 expected: 1,
             })
+        } else if mem::size_of::<T>() == 1 && mem::align_of::<T>() == 1 {
+            if bytes.len() != fixed_len {
+                return Err(ssz::DecodeError::BytesInvalid(format!(
+                    "FixedVector of {} items has {} items",
+                    fixed_len,
+                    bytes.len(),
+                )));
+            }
+
+            // Safety: We've verified T is u8, so Vec<T> is Vec<u8>
+            // and bytes.to_vec() produces Vec<u8>
+            let vec_u8 = bytes.to_vec();
+            let vec_t = unsafe { std::mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
+            Self::new(vec_t).map_err(|e| {
+                ssz::DecodeError::BytesInvalid(format!(
+                    "Wrong number of FixedVector elements: {:?}",
+                    e
+                ))
+            })
         } else if T::is_ssz_fixed_len() {
             let num_items = bytes
                 .len()
@@ -312,13 +339,19 @@ where
                 )));
             }
 
-            let vec = bytes.chunks(T::ssz_fixed_len()).try_fold(
-                Vec::with_capacity(num_items),
-                |mut vec, chunk| {
-                    vec.push(T::from_ssz_bytes(chunk)?);
-                    Ok(vec)
-                },
-            )?;
+            if bytes.len() != num_items * T::ssz_fixed_len() {
+                return Err(ssz::DecodeError::BytesInvalid(format!(
+                    "FixedVector of {} items has {} bytes",
+                    num_items,
+                    bytes.len()
+                )));
+            }
+
+            let mut vec = Vec::with_capacity(num_items);
+            for chunk in bytes.chunks_exact(T::ssz_fixed_len()) {
+                vec.push(T::from_ssz_bytes(chunk)?);
+            }
+
             Self::new(vec).map_err(|e| {
                 ssz::DecodeError::BytesInvalid(format!(
                     "Wrong number of FixedVector elements: {:?}",
