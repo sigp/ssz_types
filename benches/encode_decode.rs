@@ -38,6 +38,13 @@ fn benchmark_fixed_vector_decode(c: &mut Criterion) {
         });
     });
 
+    group.bench_function("encode_u8_128k", |b| {
+        b.iter(|| {
+            let bytes = fixed_vector_u8.as_ssz_bytes();
+            black_box(bytes);
+        });
+    });
+
     group.bench_function("decode_byte_u8_128k", |b| {
         b.iter(|| {
             let vector = ByteVector::<U131072>::from_ssz_bytes(&fixed_vector_bytes).unwrap();
