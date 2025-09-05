@@ -1,5 +1,6 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
+use derivative::Derivative;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::marker::PhantomData;
@@ -44,10 +45,12 @@ pub use typenum;
 /// let err = FixedVector::<_, typenum::U5>::try_from(base.clone()).unwrap_err();
 /// assert_eq!(err, Error::OutOfBounds { i: 4, len: 5 });
 /// ```
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Serialize, Derivative)]
+#[derivative(Debug = "transparent")]
 #[serde(transparent)]
 pub struct FixedVector<T, N> {
     vec: Vec<T>,
+    #[derivative(Debug = "ignore")]
     _phantom: PhantomData<N>,
 }
 
