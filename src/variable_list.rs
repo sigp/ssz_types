@@ -288,6 +288,26 @@ where
             return Ok(Self::default());
         }
 
+        if std::mem::size_of::<T>() == 1 && std::mem::align_of::<T>() == 1 {
+            if bytes.len() > max_len {
+                return Err(ssz::DecodeError::BytesInvalid(format!(
+                    "VariableList of {} items exceeds maximum of {}",
+                    bytes.len(),
+                    max_len
+                )));
+            }
+
+            // Safety: We've verified T has the same memory layout as u8, so Vec<T> *is*  Vec<u8>.
+            let vec_u8 = bytes.to_vec();
+            let vec_t = unsafe { std::mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
+            return Self::new(vec_t).map_err(|e| {
+                ssz::DecodeError::BytesInvalid(format!(
+                    "Wrong number of VariableList elements: {:?}",
+                    e
+                ))
+            });
+        }
+
         if T::is_ssz_fixed_len() {
             let num_items = bytes
                 .len()
@@ -301,13 +321,25 @@ where
                 )));
             }
 
-            bytes.chunks(T::ssz_fixed_len()).try_fold(
-                Vec::with_capacity(num_items),
-                |mut vec, chunk| {
-                    vec.push(T::from_ssz_bytes(chunk)?);
-                    Ok(vec)
-                },
-            )
+            // Check that we have a whole number of items and that it is safe to use chunks_exact
+            if bytes.len() % T::ssz_fixed_len() != 0 {
+                return Err(ssz::DecodeError::BytesInvalid(format!(
+                    "VariableList of {} items has {} bytes",
+                    num_items,
+                    bytes.len()
+                )));
+            }
+
+            let mut vec = Vec::with_capacity(num_items);
+            for chunk in bytes.chunks_exact(T::ssz_fixed_len()) {
+                vec.push(T::from_ssz_bytes(chunk)?);
+            }
+            Self::new(vec).map_err(|e| {
+                ssz::DecodeError::BytesInvalid(format!(
+                    "Wrong number of VariableList elements: {:?}",
+                    e
+                ))
+            })
         } else {
             ssz::decode_list_of_variable_length_items(bytes, Some(max_len))
         }?
@@ -431,7 +463,7 @@ mod test {
         assert_eq!(<VariableList<u16, U2> as Encode>::ssz_fixed_len(), 4);
     }
 
-    fn round_trip<T: Encode + Decode + std::fmt::Debug + PartialEq>(item: T) {
+    fn ssz_round_trip<T: Encode + Decode + std::fmt::Debug + PartialEq>(item: T) {
         let encoded = &item.as_ssz_bytes();
         assert_eq!(item.ssz_bytes_len(), encoded.len());
         assert_eq!(T::from_ssz_bytes(encoded), Ok(item));
@@ -439,9 +471,35 @@ mod test {
 
     #[test]
     fn u16_len_8() {
-        round_trip::<VariableList<u16, U8>>(vec![42; 8].try_into().unwrap());
-        round_trip::<VariableList<u16, U8>>(vec![0; 8].try_into().unwrap());
-        round_trip::<VariableList<u16, U8>>(vec![].try_into().unwrap());
+        ssz_round_trip::<VariableList<u16, U8>>(vec![42; 8].try_into().unwrap());
+        ssz_round_trip::<VariableList<u16, U8>>(vec![0; 8].try_into().unwrap());
+        ssz_round_trip::<VariableList<u16, U8>>(vec![].try_into().unwrap());
+    }
+
+    #[test]
+    fn ssz_round_trip_u8_len_1024() {
+        ssz_round_trip::<VariableList<u8, U1024>>(vec![42; 1024].try_into().unwrap());
+        ssz_round_trip::<VariableList<u8, U1024>>(vec![0; 1024].try_into().unwrap());
+    }
+
+    #[test]
+    fn ssz_u8_len_1024_too_long() {
+        assert_eq!(
+            VariableList::<u8, U1024>::from_ssz_bytes(&vec![42; 1025]).unwrap_err(),
+            ssz::DecodeError::BytesInvalid(
+                "VariableList of 1025 items exceeds maximum of 1024".into()
+            )
+        );
+    }
+
+    #[test]
+    fn ssz_u64_len_1024_too_long() {
+        assert_eq!(
+            VariableList::<u64, U1024>::from_ssz_bytes(&vec![42; 8 * 1025]).unwrap_err(),
+            ssz::DecodeError::BytesInvalid(
+                "VariableList of 1025 items exceeds maximum of 1024".into()
+            )
+        );
     }
 
     #[test]
@@ -450,6 +508,21 @@ mod test {
         let bytes = empty_list.as_ssz_bytes();
         assert!(bytes.is_empty());
         assert_eq!(VariableList::from_ssz_bytes(&[]).unwrap(), empty_list);
+    }
+
+    #[test]
+    fn ssz_bytes_u32_trailing() {
+        let bytes = [1, 0, 0, 0, 2, 0];
+        assert_eq!(
+            VariableList::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("VariableList of 1 items has 6 bytes".into())
+        );
+
+        let bytes = [1, 0, 0, 0, 2, 0, 0, 0, 3];
+        assert_eq!(
+            VariableList::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("VariableList of 2 items has 9 bytes".into())
+        );
     }
 
     fn root_with_length(bytes: &[u8], len: usize) -> Hash256 {
