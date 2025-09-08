@@ -1,29 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use ssz::{Decode, DecodeError, Encode};
+use ssz::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
 use std::hint::black_box;
 use std::time::Duration;
-use typenum::{Unsigned, U1048576, U131072};
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, ssz_derive::Encode)]
-#[ssz(struct_behaviour = "transparent")]
-pub struct ByteVector<N: Unsigned>(FixedVector<u8, N>);
-
-impl<N: Unsigned> ssz::Decode for ByteVector<N> {
-    fn is_ssz_fixed_len() -> bool {
-        true
-    }
-
-    fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
-        FixedVector::new(bytes.to_vec())
-            .map(Self)
-            .map_err(|e| DecodeError::BytesInvalid(format!("{e:?}")))
-    }
-
-    fn ssz_fixed_len() -> usize {
-        <FixedVector<u8, N> as ssz::Decode>::ssz_fixed_len()
-    }
-}
+use typenum::{U1048576, U131072};
 
 fn benchmark_fixed_vector(c: &mut Criterion) {
     let mut group = c.benchmark_group("fixed_vector");
@@ -34,13 +14,6 @@ fn benchmark_fixed_vector(c: &mut Criterion) {
 
     group.warm_up_time(Duration::from_secs(15));
     group.measurement_time(Duration::from_secs(10));
-
-    group.bench_function("decode_byte_u8_1m", |b| {
-        b.iter(|| {
-            let vector = ByteVector::<U1048576>::from_ssz_bytes(&fixed_vector_bytes).unwrap();
-            black_box(vector);
-        });
-    });
 
     group.bench_function("decode_u8_1m", |b| {
         b.iter(|| {
