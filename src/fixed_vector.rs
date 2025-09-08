@@ -276,13 +276,6 @@ impl<T, N: Unsigned> ssz::TryFromIter<T> for FixedVector<T, N> {
     }
 }
 
-#[inline(always)]
-pub fn from_ssz_bytes_u8_only<N: Unsigned>(
-    bytes: &[u8],
-) -> Result<FixedVector<u8, N>, ssz::DecodeError> {
-    Ok(FixedVector::new(bytes.to_vec()).unwrap())
-}
-
 impl<T, N: Unsigned> ssz::Decode for FixedVector<T, N>
 where
     T: ssz::Decode,
