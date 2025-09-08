@@ -1,5 +1,6 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
+use derivative::Derivative;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::marker::PhantomData;
@@ -47,10 +48,12 @@ pub use typenum;
 /// // Push a value to if it _does_ exceed the maximum.
 /// assert!(long.push(6).is_err());
 /// ```
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Serialize, Derivative)]
+#[derivative(Debug = "transparent")]
 #[serde(transparent)]
 pub struct VariableList<T, N> {
     vec: Vec<T>,
+    #[derivative(Debug = "ignore")]
     _phantom: PhantomData<N>,
 }
 
