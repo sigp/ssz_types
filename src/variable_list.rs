@@ -483,6 +483,26 @@ mod test {
     }
 
     #[test]
+    fn ssz_u8_len_1024_too_long() {
+        assert_eq!(
+            VariableList::<u8, U1024>::from_ssz_bytes(&vec![42; 1025]).unwrap_err(),
+            ssz::DecodeError::BytesInvalid(
+                "VariableList of 1025 items exceeds maximum of 1024".into()
+            )
+        );
+    }
+
+    #[test]
+    fn ssz_u64_len_1024_too_long() {
+        assert_eq!(
+            VariableList::<u64, U1024>::from_ssz_bytes(&vec![42; 8 * 1025]).unwrap_err(),
+            ssz::DecodeError::BytesInvalid(
+                "VariableList of 1025 items exceeds maximum of 1024".into()
+            )
+        );
+    }
+
+    #[test]
     fn ssz_empty_list() {
         let empty_list = VariableList::<u16, U8>::default();
         let bytes = empty_list.as_ssz_bytes();
@@ -491,9 +511,18 @@ mod test {
     }
 
     #[test]
-    fn ssz_bytes_u64_trailing() {
+    fn ssz_bytes_u32_trailing() {
         let bytes = [1, 0, 0, 0, 2, 0];
-        VariableList::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err();
+        assert_eq!(
+            VariableList::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("VariableList of 1 items has 6 bytes".into())
+        );
+
+        let bytes = [1, 0, 0, 0, 2, 0, 0, 0, 3];
+        assert_eq!(
+            VariableList::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("VariableList of 2 items has 9 bytes".into())
+        );
     }
 
     fn root_with_length(bytes: &[u8], len: usize) -> Hash256 {

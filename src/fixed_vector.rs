@@ -512,19 +512,28 @@ mod test {
 
     #[test]
     fn ssz_u8_len_1024_too_long() {
-        FixedVector::<u8, U1024>::new(vec![42; 1025]).unwrap_err();
+        assert_eq!(
+            FixedVector::<u8, U1024>::from_ssz_bytes(&vec![42; 1025]).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("FixedVector of 1024 items has 1025 items".into())
+        );
     }
 
     #[test]
     fn ssz_u64_len_1024_too_long() {
-        FixedVector::<u64, U1024>::new(vec![42; 1025]).unwrap_err();
+        assert_eq!(
+            FixedVector::<u64, U1024>::from_ssz_bytes(&vec![42; 8 * 1025]).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("FixedVector of 1024 items has 1025 items".into())
+        );
     }
 
     // Decoding an input with invalid trailing bytes MUST fail.
     #[test]
     fn ssz_bytes_u64_trailing() {
         let bytes = [1, 0, 0, 0, 2, 0, 0, 0, 1];
-        FixedVector::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err();
+        assert_eq!(
+            FixedVector::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("FixedVector of 2 items has 9 bytes".into())
+        );
     }
 
     #[test]
