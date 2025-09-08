@@ -510,6 +510,16 @@ mod test {
         ssz_round_trip::<FixedVector<u8, U1024>>(vec![0; 1024].try_into().unwrap());
     }
 
+    #[test]
+    fn ssz_u8_len_1024_too_long() {
+        FixedVector::<u8, U1024>::new(vec![42; 1025]).unwrap_err();
+    }
+
+    #[test]
+    fn ssz_u64_len_1024_too_long() {
+        FixedVector::<u64, U1024>::new(vec![42; 1025]).unwrap_err();
+    }
+
     // Decoding an input with invalid trailing bytes MUST fail.
     #[test]
     fn ssz_bytes_u64_trailing() {
