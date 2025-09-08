@@ -24,8 +24,8 @@
 //! }
 //!
 //! let mut example = Example {
-//!     bit_vector: Bitfield::new(),
-//!     bit_list: Bitfield::with_capacity(4).unwrap(),
+//!     bit_vector: BitVector::new(),
+//!     bit_list: BitList::with_capacity(4).unwrap(),
 //!     variable_list: VariableList::try_from(vec![0, 1]).unwrap(),
 //!     fixed_vector: FixedVector::try_from(vec![2, 3, 4, 5, 6, 7, 8, 9]).unwrap(),
 //! };
