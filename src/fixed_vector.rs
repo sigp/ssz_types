@@ -335,11 +335,12 @@ where
             if num_items != fixed_len {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "FixedVector of {} items has {} items",
-                    num_items, fixed_len
+                    fixed_len, num_items
                 )));
             }
 
-            if bytes.len() != num_items * T::ssz_fixed_len() {
+            // Check that we have a whole number of items and that it is safe to use chunks_exact
+            if bytes.len() % T::ssz_fixed_len() != 0 {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "FixedVector of {} items has {} bytes",
                     num_items,
@@ -504,6 +505,20 @@ mod test {
     fn ssz_round_trip_u16_len_8() {
         ssz_round_trip::<FixedVector<u16, U8>>(vec![42; 8].try_into().unwrap());
         ssz_round_trip::<FixedVector<u16, U8>>(vec![0; 8].try_into().unwrap());
+    }
+
+    // Test byte decoding (we have a specialised code path with unsafe code that NEEDS coverage).
+    #[test]
+    fn ssz_round_trip_u8_len_1024() {
+        ssz_round_trip::<FixedVector<u8, U1024>>(vec![42; 1024].try_into().unwrap());
+        ssz_round_trip::<FixedVector<u8, U1024>>(vec![0; 1024].try_into().unwrap());
+    }
+
+    // Decoding an input with invalid trailing bytes MUST fail.
+    #[test]
+    fn ssz_bytes_u64_trailing() {
+        let bytes = [1, 0, 0, 0, 2, 0, 0, 0, 1];
+        FixedVector::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err();
     }
 
     #[test]

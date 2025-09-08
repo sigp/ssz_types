@@ -318,6 +318,15 @@ where
                 )));
             }
 
+            // Check that we have a whole number of items and that it is safe to use chunks_exact
+            if bytes.len() % T::ssz_fixed_len() != 0 {
+                return Err(ssz::DecodeError::BytesInvalid(format!(
+                    "VariableList of {} items has {} bytes",
+                    num_items,
+                    bytes.len()
+                )));
+            }
+
             let mut vec = Vec::with_capacity(num_items);
             for chunk in bytes.chunks_exact(T::ssz_fixed_len()) {
                 vec.push(T::from_ssz_bytes(chunk)?);
@@ -451,7 +460,7 @@ mod test {
         assert_eq!(<VariableList<u16, U2> as Encode>::ssz_fixed_len(), 4);
     }
 
-    fn round_trip<T: Encode + Decode + std::fmt::Debug + PartialEq>(item: T) {
+    fn ssz_round_trip<T: Encode + Decode + std::fmt::Debug + PartialEq>(item: T) {
         let encoded = &item.as_ssz_bytes();
         assert_eq!(item.ssz_bytes_len(), encoded.len());
         assert_eq!(T::from_ssz_bytes(encoded), Ok(item));
@@ -459,9 +468,15 @@ mod test {
 
     #[test]
     fn u16_len_8() {
-        round_trip::<VariableList<u16, U8>>(vec![42; 8].try_into().unwrap());
-        round_trip::<VariableList<u16, U8>>(vec![0; 8].try_into().unwrap());
-        round_trip::<VariableList<u16, U8>>(vec![].try_into().unwrap());
+        ssz_round_trip::<VariableList<u16, U8>>(vec![42; 8].try_into().unwrap());
+        ssz_round_trip::<VariableList<u16, U8>>(vec![0; 8].try_into().unwrap());
+        ssz_round_trip::<VariableList<u16, U8>>(vec![].try_into().unwrap());
+    }
+
+    #[test]
+    fn ssz_round_trip_u8_len_1024() {
+        ssz_round_trip::<VariableList<u8, U1024>>(vec![42; 1024].try_into().unwrap());
+        ssz_round_trip::<VariableList<u8, U1024>>(vec![0; 1024].try_into().unwrap());
     }
 
     #[test]
@@ -470,6 +485,12 @@ mod test {
         let bytes = empty_list.as_ssz_bytes();
         assert!(bytes.is_empty());
         assert_eq!(VariableList::from_ssz_bytes(&[]).unwrap(), empty_list);
+    }
+
+    #[test]
+    fn ssz_bytes_u64_trailing() {
+        let bytes = [1, 0, 0, 0, 2, 0];
+        VariableList::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err();
     }
 
     fn root_with_length(bytes: &[u8], len: usize) -> Hash256 {
