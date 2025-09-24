@@ -1,6 +1,5 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
-use derivative::Derivative;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::marker::PhantomData;
@@ -45,12 +44,10 @@ pub use typenum;
 /// let err = FixedVector::<_, typenum::U5>::try_from(base.clone()).unwrap_err();
 /// assert_eq!(err, Error::OutOfBounds { i: 4, len: 5 });
 /// ```
-#[derive(Clone, Serialize, Derivative)]
-#[derivative(Debug = "transparent")]
+#[derive(Clone, Serialize)]
 #[serde(transparent)]
 pub struct FixedVector<T, N> {
     vec: Vec<T>,
-    #[derivative(Debug = "ignore")]
     _phantom: PhantomData<N>,
 }
 
@@ -64,6 +61,12 @@ impl<T: Eq, N> Eq for FixedVector<T, N> {}
 impl<T: std::hash::Hash, N> std::hash::Hash for FixedVector<T, N> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.vec.hash(state);
+    }
+}
+
+impl<T: std::fmt::Debug, N> std::fmt::Debug for FixedVector<T, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.vec.fmt(f)
     }
 }
 
@@ -570,5 +573,13 @@ mod test {
         let json = serde_json::json!([1, 2, 3, 4]);
         let result: Result<FixedVector<u64, U4>, _> = serde_json::from_value(json);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn debug_transparent() {
+        let vec: FixedVector<u64, U4> = FixedVector::try_from(vec![1, 2, 3, 4]).unwrap();
+        let debug_output = format!("{:?}", vec);
+
+        assert_eq!(debug_output, "[1, 2, 3, 4]");
     }
 }
