@@ -103,6 +103,17 @@ impl<T, N: Unsigned> VariableList<T, N> {
         }
     }
 
+    /// Creates a full list with the given element repeated.
+    pub fn repeat_full(elem: T) -> Self
+    where
+        T: Clone,
+    {
+        Self {
+            vec: vec![elem; N::to_usize()],
+            _phantom: PhantomData,
+        }
+    }
+
     /// Returns the number of values presently in `self`.
     pub fn len(&self) -> usize {
         self.vec.len()
@@ -381,6 +392,13 @@ mod test {
         let vec = vec![42; 4];
         let fixed: Result<VariableList<u64, U4>, _> = VariableList::new(vec);
         assert!(fixed.is_ok());
+    }
+
+    #[test]
+    fn repeat_full() {
+        let manual_list = VariableList::<u64, U5>::new(vec![42; 5]).unwrap();
+        let repeat_list = VariableList::<u64, U5>::repeat_full(42);
+        assert_eq!(manual_list, repeat_list);
     }
 
     #[test]
