@@ -1,6 +1,6 @@
 [package]
 name = "ssz_types"
-version = "0.12.1"
+version = "0.12.2"
 edition = "2021"
 description = "List, vector and bitfield types for SSZ"
 license = "Apache-2.0"
