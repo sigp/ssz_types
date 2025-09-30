@@ -1,6 +1,5 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
-use derivative::Derivative;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::marker::PhantomData;
@@ -48,12 +47,10 @@ pub use typenum;
 /// // Push a value to if it _does_ exceed the maximum.
 /// assert!(long.push(6).is_err());
 /// ```
-#[derive(Clone, Serialize, Derivative)]
-#[derivative(Debug = "transparent")]
+#[derive(Clone, Serialize)]
 #[serde(transparent)]
 pub struct VariableList<T, N> {
     vec: Vec<T>,
-    #[derivative(Debug = "ignore")]
     _phantom: PhantomData<N>,
 }
 
@@ -67,6 +64,12 @@ impl<T: Eq, N> Eq for VariableList<T, N> {}
 impl<T: std::hash::Hash, N> std::hash::Hash for VariableList<T, N> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.vec.hash(state);
+    }
+}
+
+impl<T: std::fmt::Debug, N> std::fmt::Debug for VariableList<T, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.vec.fmt(f)
     }
 }
 
@@ -99,6 +102,17 @@ impl<T, N: Unsigned> VariableList<T, N> {
     pub fn empty() -> Self {
         Self {
             vec: vec![],
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Creates a full list with the given element repeated.
+    pub fn repeat_full(elem: T) -> Self
+    where
+        T: Clone,
+    {
+        Self {
+            vec: vec![elem; N::to_usize()],
             _phantom: PhantomData,
         }
     }
@@ -384,6 +398,13 @@ mod test {
     }
 
     #[test]
+    fn repeat_full() {
+        let manual_list = VariableList::<u64, U5>::new(vec![42; 5]).unwrap();
+        let repeat_list = VariableList::<u64, U5>::repeat_full(42);
+        assert_eq!(manual_list, repeat_list);
+    }
+
+    #[test]
     fn indexing() {
         let vec = vec![1, 2];
 
@@ -630,5 +651,13 @@ mod test {
         let json = serde_json::json!([1, 2, 3, 4]);
         let result: Result<VariableList<u64, U4>, _> = serde_json::from_value(json);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn debug_transparent_list() {
+        let list: VariableList<u64, U5> = VariableList::try_from(vec![1, 2, 3]).unwrap();
+        let debug_output = format!("{:?}", list);
+
+        assert_eq!(debug_output, "[1, 2, 3]");
     }
 }
