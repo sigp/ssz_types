@@ -29,7 +29,3 @@ tree_hash_derive = "0.10.0"
 [[bench]]
 harness = false
 name = "encode_decode"
-
-# FIXME: remove before release
-[patch.crates-io]
-ethereum_ssz = { git = "https://github.com/sigp/ethereum_ssz", branch = "main" }
