@@ -21,10 +21,18 @@ smallvec = "1.8.0"
 arbitrary = { version = "1.0", features = ["derive"], optional = true }
 itertools = "0.14.0"
 
+# Optional dependencies
+educe = { version = "0.6", optional = true }
+# Use crates.io version once published.
+context_deserialize = { git = "https://github.com/sigp/lighthouse", tag = "v8.0.0-rc.0", optional = true }
+
 [dev-dependencies]
 criterion = "0.7.0"
 serde_json = "1.0.0"
 tree_hash_derive = "0.10.0"
+
+[features]
+runtime-types = ["dep:context_deserialize", "dep:educe"]
 
 [[bench]]
 harness = false
