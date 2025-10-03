@@ -37,9 +37,13 @@
 //!
 //! ```
 
+pub mod serde_utils;
+pub mod length {
+    pub use ssz::{Fixed, Variable};
+}
+
 #[macro_use]
 mod fixed_vector;
-pub mod serde_utils;
 mod tree_hash;
 mod variable_list;
 
@@ -48,9 +52,11 @@ pub use ssz::{BitList, BitVector, Bitfield};
 pub use typenum;
 pub use variable_list::VariableList;
 
-pub mod length {
-    pub use ssz::{Fixed, Variable};
-}
+#[cfg(feature = "runtime-types")]
+mod runtime_types;
+
+#[cfg(feature = "runtime-types")]
+pub use runtime_types::{RuntimeFixedVector, RuntimeVariableList};
 
 /// Returned when an item encounters an error.
 #[derive(PartialEq, Debug, Clone)]
