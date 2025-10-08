@@ -18,7 +18,7 @@ jobs:
     - name: Get latest version of stable Rust
       run: rustup update stable
     - name: Check formatting with cargo fmt
-      run: cargo fmt --all --all-features -- --check
+      run: cargo fmt --all -- --check
   cargo-clippy:
     name: cargo-clippy
     runs-on: ubuntu-latest
