@@ -40,6 +40,14 @@ jobs:
       run: rustup update stable
     - name: Run tests
       run: cargo test --release --all-features
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: miri
+    - run: cargo miri test --no-default-features
   coverage:
     name: cargo-tarpaulin
     runs-on: ubuntu-latest
