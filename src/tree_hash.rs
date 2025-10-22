@@ -8,9 +8,8 @@ where
 {
     match T::tree_hash_type() {
         TreeHashType::Basic => {
-            let mut hasher = MerkleHasher::with_leaves(
-                (max_leaves + T::tree_hash_packing_factor() - 1) / T::tree_hash_packing_factor(),
-            );
+            let mut hasher =
+                MerkleHasher::with_leaves(max_leaves.div_ceil(T::tree_hash_packing_factor()));
 
             for item in vec {
                 hasher
