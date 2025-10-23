@@ -3,6 +3,7 @@ use crate::Error;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::marker::PhantomData;
+use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
 use tree_hash::Hash256;
@@ -305,6 +306,25 @@ where
                 len: 0,
                 expected: 1,
             })
+        } else if mem::size_of::<T>() == 1 && mem::align_of::<T>() == 1 {
+            if bytes.len() != fixed_len {
+                return Err(ssz::DecodeError::BytesInvalid(format!(
+                    "FixedVector of {} items has {} items",
+                    fixed_len,
+                    bytes.len(),
+                )));
+            }
+
+            // Safety: We've verified T is u8, so Vec<T> is Vec<u8>
+            // and bytes.to_vec() produces Vec<u8>
+            let vec_u8 = bytes.to_vec();
+            let vec_t = unsafe { std::mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
+            Self::new(vec_t).map_err(|e| {
+                ssz::DecodeError::BytesInvalid(format!(
+                    "Wrong number of FixedVector elements: {:?}",
+                    e
+                ))
+            })
         } else if T::is_ssz_fixed_len() {
             let num_items = bytes
                 .len()
@@ -314,17 +334,24 @@ where
             if num_items != fixed_len {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "FixedVector of {} items has {} items",
-                    num_items, fixed_len
+                    fixed_len, num_items
                 )));
             }
 
-            let vec = bytes.chunks(T::ssz_fixed_len()).try_fold(
-                Vec::with_capacity(num_items),
-                |mut vec, chunk| {
-                    vec.push(T::from_ssz_bytes(chunk)?);
-                    Ok(vec)
-                },
-            )?;
+            // Check that we have a whole number of items and that it is safe to use chunks_exact
+            if bytes.len() % T::ssz_fixed_len() != 0 {
+                return Err(ssz::DecodeError::BytesInvalid(format!(
+                    "FixedVector of {} items has {} bytes",
+                    num_items,
+                    bytes.len()
+                )));
+            }
+
+            let mut vec = Vec::with_capacity(num_items);
+            for chunk in bytes.chunks_exact(T::ssz_fixed_len()) {
+                vec.push(T::from_ssz_bytes(chunk)?);
+            }
+
             Self::new(vec).map_err(|e| {
                 ssz::DecodeError::BytesInvalid(format!(
                     "Wrong number of FixedVector elements: {:?}",
@@ -477,6 +504,39 @@ mod test {
     fn ssz_round_trip_u16_len_8() {
         ssz_round_trip::<FixedVector<u16, U8>>(vec![42; 8].try_into().unwrap());
         ssz_round_trip::<FixedVector<u16, U8>>(vec![0; 8].try_into().unwrap());
+    }
+
+    // Test byte decoding (we have a specialised code path with unsafe code that NEEDS coverage).
+    #[test]
+    fn ssz_round_trip_u8_len_1024() {
+        ssz_round_trip::<FixedVector<u8, U1024>>(vec![42; 1024].try_into().unwrap());
+        ssz_round_trip::<FixedVector<u8, U1024>>(vec![0; 1024].try_into().unwrap());
+    }
+
+    #[test]
+    fn ssz_u8_len_1024_too_long() {
+        assert_eq!(
+            FixedVector::<u8, U1024>::from_ssz_bytes(&vec![42; 1025]).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("FixedVector of 1024 items has 1025 items".into())
+        );
+    }
+
+    #[test]
+    fn ssz_u64_len_1024_too_long() {
+        assert_eq!(
+            FixedVector::<u64, U1024>::from_ssz_bytes(&vec![42; 8 * 1025]).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("FixedVector of 1024 items has 1025 items".into())
+        );
+    }
+
+    // Decoding an input with invalid trailing bytes MUST fail.
+    #[test]
+    fn ssz_bytes_u64_trailing() {
+        let bytes = [1, 0, 0, 0, 2, 0, 0, 0, 1];
+        assert_eq!(
+            FixedVector::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err(),
+            ssz::DecodeError::BytesInvalid("FixedVector of 2 items has 9 bytes".into())
+        );
     }
 
     #[test]
