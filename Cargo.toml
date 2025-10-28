@@ -10,6 +10,11 @@ documentation = "https://docs.rs/ssz_types"
 keywords = ["ethereum"]
 categories = ["cryptography::cryptocurrencies"]
 
+[features]
+default = ["ring"]
+ring = ["tree_hash/ring"]
+context_deserialize = ["dep:context_deserialize"]
+
 [dependencies]
 tree_hash = { version = "0.11.0", default-features = false }
 ethereum_serde_utils = "0.8.0"
@@ -20,15 +25,12 @@ typenum = "1.12.0"
 smallvec = "1.8.0"
 arbitrary = { version = "1.0", features = ["derive"], optional = true }
 itertools = "0.14.0"
+context_deserialize = { version = "0.1.0", optional = true }
 
 [dev-dependencies]
 criterion = "0.7.0"
 serde_json = "1.0.0"
 tree_hash_derive = "0.10.0"
-
-[features]
-default = ["ring"]
-ring = ["tree_hash/ring"]
 
 [[bench]]
 harness = false
