@@ -318,7 +318,7 @@ where
             // Safety: We've verified T is layout-equivalent to u8, so Vec<T> and Vec<u8>
             // have the same layout as well.
             let vec_u8 = bytes.to_vec();
-            let vec_t = unsafe { std::mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
+            let vec_t = unsafe { mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
             Self::new(vec_t).map_err(|e| {
                 ssz::DecodeError::BytesInvalid(format!(
                     "Wrong number of FixedVector elements: {:?}",
@@ -511,6 +511,15 @@ mod test {
     fn ssz_round_trip_u8_len_1024() {
         ssz_round_trip::<FixedVector<u8, U1024>>(vec![42; 1024].try_into().unwrap());
         ssz_round_trip::<FixedVector<u8, U1024>>(vec![0; 1024].try_into().unwrap());
+    }
+
+    // bool is layout equivalent to u8 and takes the same unsafe codepath.
+    #[test]
+    fn ssz_round_trip_bool_len_1024() {
+        assert_eq!(mem::size_of::<bool>(), 1);
+        assert_eq!(mem::align_of::<bool>(), 1);
+        ssz_round_trip::<FixedVector<bool, U1024>>(vec![true; 1024].try_into().unwrap());
+        ssz_round_trip::<FixedVector<bool, U1024>>(vec![false; 1024].try_into().unwrap());
     }
 
     #[test]

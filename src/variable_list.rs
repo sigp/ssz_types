@@ -3,6 +3,7 @@ use crate::Error;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::marker::PhantomData;
+use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
 use tree_hash::Hash256;
@@ -302,7 +303,7 @@ where
             return Ok(Self::default());
         }
 
-        if std::mem::size_of::<T>() == 1 && std::mem::align_of::<T>() == 1 {
+        if mem::size_of::<T>() == 1 && mem::align_of::<T>() == 1 {
             if bytes.len() > max_len {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "VariableList of {} items exceeds maximum of {}",
@@ -314,7 +315,7 @@ where
             // Safety: We've verified T is layout-equivalent to u8, so Vec<T> and Vec<u8>
             // have the same layout as well.
             let vec_u8 = bytes.to_vec();
-            let vec_t = unsafe { std::mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
+            let vec_t = unsafe { mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
             return Self::new(vec_t).map_err(|e| {
                 ssz::DecodeError::BytesInvalid(format!(
                     "Wrong number of VariableList elements: {:?}",
@@ -498,6 +499,15 @@ mod test {
     fn ssz_round_trip_u8_len_1024() {
         ssz_round_trip::<VariableList<u8, U1024>>(vec![42; 1024].try_into().unwrap());
         ssz_round_trip::<VariableList<u8, U1024>>(vec![0; 1024].try_into().unwrap());
+    }
+
+    // bool is layout equivalent to u8 and takes the same unsafe codepath.
+    #[test]
+    fn ssz_round_trip_bool_len_1024() {
+        assert_eq!(mem::size_of::<bool>(), 1);
+        assert_eq!(mem::align_of::<bool>(), 1);
+        ssz_round_trip::<VariableList<bool, U1024>>(vec![true; 1024].try_into().unwrap());
+        ssz_round_trip::<VariableList<bool, U1024>>(vec![false; 1024].try_into().unwrap());
     }
 
     #[test]
