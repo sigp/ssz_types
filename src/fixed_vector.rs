@@ -339,7 +339,7 @@ where
             }
 
             // Check that we have a whole number of items and that it is safe to use chunks_exact
-            if bytes.len() % T::ssz_fixed_len() != 0 {
+            if !bytes.len().is_multiple_of(T::ssz_fixed_len()) {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "FixedVector of {} items has {} bytes",
                     num_items,
