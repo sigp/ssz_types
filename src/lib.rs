@@ -75,3 +75,15 @@ pub enum Error {
         expected: usize,
     },
 }
+
+/// This impl can be removed once the never type is stabilised in Rust.
+///
+/// It is useful for using `?` in generic code that mixes `From` and `TryFrom`, as the blanket
+/// `TryFrom` impl for `From` types uses `Infallible` as the error.
+///
+/// See: https://doc.rust-lang.org/std/convert/trait.TryFrom.html#generic-implementations
+impl From<std::convert::Infallible> for Error {
+    fn from(e: std::convert::Infallible) -> Self {
+        match e {}
+    }
+}
