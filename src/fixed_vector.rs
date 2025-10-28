@@ -315,8 +315,8 @@ where
                 )));
             }
 
-            // Safety: We've verified T is u8, so Vec<T> is Vec<u8>
-            // and bytes.to_vec() produces Vec<u8>
+            // Safety: We've verified T is layout-equivalent to u8, so Vec<T> and Vec<u8>
+            // have the same layout as well.
             let vec_u8 = bytes.to_vec();
             let vec_t = unsafe { std::mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
             Self::new(vec_t).map_err(|e| {
