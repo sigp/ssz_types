@@ -2,6 +2,7 @@ use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
 use serde::Deserialize;
 use serde_derive::Serialize;
+use std::any::TypeId;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
@@ -289,7 +290,7 @@ impl<T, N: Unsigned> ssz::TryFromIter<T> for VariableList<T, N> {
 
 impl<T, N> ssz::Decode for VariableList<T, N>
 where
-    T: ssz::Decode,
+    T: ssz::Decode + 'static,
     N: Unsigned,
 {
     fn is_ssz_fixed_len() -> bool {
@@ -303,7 +304,7 @@ where
             return Ok(Self::default());
         }
 
-        if mem::size_of::<T>() == 1 && mem::align_of::<T>() == 1 {
+        if TypeId::of::<T>() == TypeId::of::<u8>() {
             if bytes.len() > max_len {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "VariableList of {} items exceeds maximum of {}",
@@ -312,8 +313,7 @@ where
                 )));
             }
 
-            // Safety: We've verified T is layout-equivalent to u8, so Vec<T> and Vec<u8>
-            // have the same layout as well.
+            // Safety: We've verified T is u8, so Vec<T> *is* Vec<u8>.
             let vec_u8 = bytes.to_vec();
             let vec_t = unsafe { mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
             return Self::new(vec_t).map_err(|e| {
@@ -501,7 +501,8 @@ mod test {
         ssz_round_trip::<VariableList<u8, U1024>>(vec![0; 1024].try_into().unwrap());
     }
 
-    // bool is layout equivalent to u8 and takes the same unsafe codepath.
+    // bool is layout equivalent to u8 but must not use the same unsafe codepath because not all u8
+    // values are valid bools.
     #[test]
     fn ssz_round_trip_bool_len_1024() {
         assert_eq!(mem::size_of::<bool>(), 1);
@@ -510,7 +511,7 @@ mod test {
         ssz_round_trip::<VariableList<bool, U1024>>(vec![false; 1024].try_into().unwrap());
     }
 
-    // Decoding a u8 list as a list of bools must fail, if we aren't careful we could trigger UB
+    // Decoding a u8 list as a list of bools must fail, if we aren't careful we could trigger UB.
     #[test]
     fn ssz_u8_to_bool_len_1024() {
         let list_u8 = VariableList::<u8, U8>::new(vec![0, 1, 2, 3, 4, 5, 6, 7]).unwrap();

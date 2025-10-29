@@ -2,6 +2,7 @@ use crate::tree_hash::vec_tree_hash_root;
 use crate::Error;
 use serde::Deserialize;
 use serde_derive::Serialize;
+use std::any::TypeId;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
@@ -284,7 +285,7 @@ impl<T, N: Unsigned> ssz::TryFromIter<T> for FixedVector<T, N> {
 
 impl<T, N: Unsigned> ssz::Decode for FixedVector<T, N>
 where
-    T: ssz::Decode,
+    T: ssz::Decode + 'static,
 {
     fn is_ssz_fixed_len() -> bool {
         T::is_ssz_fixed_len()
@@ -306,7 +307,7 @@ where
                 len: 0,
                 expected: 1,
             })
-        } else if mem::size_of::<T>() == 1 && mem::align_of::<T>() == 1 {
+        } else if TypeId::of::<T>() == TypeId::of::<u8>() {
             if bytes.len() != fixed_len {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "FixedVector of {} items has {} items",
@@ -315,8 +316,7 @@ where
                 )));
             }
 
-            // Safety: We've verified T is layout-equivalent to u8, so Vec<T> and Vec<u8>
-            // have the same layout as well.
+            // Safety: We've verified T is u8, so Vec<T> *is* Vec<u8>.
             let vec_u8 = bytes.to_vec();
             let vec_t = unsafe { mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
             Self::new(vec_t).map_err(|e| {
@@ -513,13 +513,21 @@ mod test {
         ssz_round_trip::<FixedVector<u8, U1024>>(vec![0; 1024].try_into().unwrap());
     }
 
-    // bool is layout equivalent to u8 and takes the same unsafe codepath.
+    // bool is layout equivalent to u8 but must not use the same unsafe codepath because not all u8
+    // values are valid bools.
     #[test]
     fn ssz_round_trip_bool_len_1024() {
         assert_eq!(mem::size_of::<bool>(), 1);
         assert_eq!(mem::align_of::<bool>(), 1);
         ssz_round_trip::<FixedVector<bool, U1024>>(vec![true; 1024].try_into().unwrap());
         ssz_round_trip::<FixedVector<bool, U1024>>(vec![false; 1024].try_into().unwrap());
+    }
+
+    // Decoding a u8 vector as a vector of bools must fail, if we aren't careful we could trigger UB.
+    #[test]
+    fn ssz_u8_to_bool_len_1024() {
+        let list_u8 = FixedVector::<u8, U8>::new(vec![0, 1, 2, 3, 4, 5, 6, 7]).unwrap();
+        FixedVector::<bool, U8>::from_ssz_bytes(&list_u8.as_ssz_bytes()).unwrap_err();
     }
 
     #[test]
