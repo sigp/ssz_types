@@ -510,6 +510,13 @@ mod test {
         ssz_round_trip::<VariableList<bool, U1024>>(vec![false; 1024].try_into().unwrap());
     }
 
+    // Decoding a u8 list as a list of bools must fail, if we aren't careful we could trigger UB
+    #[test]
+    fn ssz_u8_to_bool_len_1024() {
+        let list_u8 = VariableList::<u8, U8>::new(vec![0, 1, 2, 3, 4, 5, 6, 7]).unwrap();
+        VariableList::<bool, U8>::from_ssz_bytes(&list_u8.as_ssz_bytes()).unwrap_err();
+    }
+
     #[test]
     fn ssz_u8_len_1024_too_long() {
         assert_eq!(
