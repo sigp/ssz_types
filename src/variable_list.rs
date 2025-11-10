@@ -748,4 +748,12 @@ mod test {
 
         assert_eq!(debug_output, "[1, 2, 3]");
     }
+
+    // This tests the `From<Infallible>` impl for `Error`.
+    #[test]
+    fn error_from_infallible() {
+        let result: Result<Vec<u64>, Error> =
+            Vec::try_from(VariableList::<u64, U5>::repeat_full(6)).map_err(Into::into);
+        assert_eq!(result, Ok(vec![6; 5]));
+    }
 }
