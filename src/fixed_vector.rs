@@ -548,7 +548,7 @@ mod test {
 
     // Decoding an input with invalid trailing bytes MUST fail.
     #[test]
-    fn ssz_bytes_u64_trailing() {
+    fn ssz_bytes_u32_trailing() {
         let bytes = [1, 0, 0, 0, 2, 0, 0, 0, 1];
         assert_eq!(
             FixedVector::<u32, U2>::from_ssz_bytes(&bytes).unwrap_err(),
