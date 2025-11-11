@@ -1,3 +1,5 @@
+#[cfg(feature = "context_deserialize")]
+mod context_deserialize;
 mod runtime_fixed_vector;
 mod runtime_variable_list;
 
