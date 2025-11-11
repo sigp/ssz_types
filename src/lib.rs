@@ -79,6 +79,34 @@ pub enum Error {
     },
 }
 
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::OutOfBounds { i, len } => {
+                write!(f, "Index out of bounds: index {}, length {}", i, len)
+            }
+            Error::MissingLengthInformation => {
+                write!(
+                    f,
+                    "BitList does not have a set bit, length cannot be determined"
+                )
+            }
+            Error::ExcessBits => {
+                write!(f, "BitList has excess bits set to true")
+            }
+            Error::InvalidByteCount { given, expected } => {
+                write!(
+                    f,
+                    "Invalid byte count: given {}, expected {}",
+                    given, expected
+                )
+            }
+        }
+    }
+}
+
+impl core::error::Error for Error {}
+
 /// This impl can be removed once the never type is stabilised in Rust.
 ///
 /// It is useful for using `?` in generic code that mixes `From` and `TryFrom`, as the blanket
