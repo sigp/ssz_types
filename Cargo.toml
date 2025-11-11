@@ -18,7 +18,7 @@ context_deserialize = ["dep:context_deserialize"]
 [dependencies]
 tree_hash = { version = "0.11.0", default-features = false }
 ethereum_serde_utils = "0.8.0"
-ethereum_ssz = "0.9.0"
+ethereum_ssz = "0.10.0"
 serde = "1.0.0"
 serde_derive = "1.0.0"
 typenum = "1.12.0"
