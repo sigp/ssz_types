@@ -13,7 +13,7 @@ categories = ["cryptography::cryptocurrencies"]
 [features]
 default = ["ring"]
 ring = ["tree_hash/ring"]
-runtime_types = ["dep:context_deserialize", "dep:educe"]
+runtime_types = ["dep:educe"]
 context_deserialize = ["dep:context_deserialize"]
 
 [dependencies]
