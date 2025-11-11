@@ -24,8 +24,8 @@
 //! }
 //!
 //! let mut example = Example {
-//!     bit_vector: Bitfield::new(),
-//!     bit_list: Bitfield::with_capacity(4).unwrap(),
+//!     bit_vector: BitVector::new(),
+//!     bit_list: BitList::with_capacity(4).unwrap(),
 //!     variable_list: VariableList::try_from(vec![0, 1]).unwrap(),
 //!     fixed_vector: FixedVector::try_from(vec![2, 3, 4, 5, 6, 7, 8, 9]).unwrap(),
 //! };
@@ -42,6 +42,9 @@ mod fixed_vector;
 pub mod serde_utils;
 mod tree_hash;
 mod variable_list;
+
+#[cfg(feature = "context_deserialize")]
+mod context_deserialize;
 
 pub use fixed_vector::FixedVector;
 pub use ssz::{BitList, BitVector, Bitfield};
@@ -97,3 +100,15 @@ impl core::fmt::Display for Error {
 }
 
 impl core::error::Error for Error {}
+
+/// This impl can be removed once the never type is stabilised in Rust.
+///
+/// It is useful for using `?` in generic code that mixes `From` and `TryFrom`, as the blanket
+/// `TryFrom` impl for `From` types uses `Infallible` as the error.
+///
+/// See: https://doc.rust-lang.org/std/convert/trait.TryFrom.html#generic-implementations
+impl From<std::convert::Infallible> for Error {
+    fn from(e: std::convert::Infallible) -> Self {
+        match e {}
+    }
+}

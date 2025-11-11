@@ -19,6 +19,15 @@ jobs:
       run: rustup update stable
     - name: Check formatting with cargo fmt
       run: cargo fmt --all -- --check
+  cargo-clippy:
+    name: cargo-clippy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Get latest version of stable Rust
+      run: rustup update stable
+    - name: Check code quality with cargo clippy
+      run: cargo clippy --all --all-features -- --deny warnings
   test:
     strategy:
       matrix:
@@ -30,7 +39,15 @@ jobs:
     - name: Get latest version of stable Rust
       run: rustup update stable
     - name: Run tests
-      run: cargo test --release
+      run: cargo test --release --all-features
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: miri
+    - run: cargo miri test --no-default-features
   coverage:
     name: cargo-tarpaulin
     runs-on: ubuntu-latest
@@ -45,6 +62,6 @@ jobs:
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4
       with:
-        fail_ci_if_error: true
+        fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
         informational: true
