@@ -13,6 +13,7 @@ categories = ["cryptography::cryptocurrencies"]
 [features]
 default = ["ring"]
 ring = ["tree_hash/ring"]
+runtime_types = ["dep:educe"]
 context_deserialize = ["dep:context_deserialize"]
 
 [dependencies]
@@ -23,9 +24,12 @@ serde = "1.0.0"
 serde_derive = "1.0.0"
 typenum = "1.12.0"
 smallvec = "1.8.0"
-arbitrary = { version = "1.0", features = ["derive"], optional = true }
 itertools = "0.14.0"
+
+# Optional dependencies
+arbitrary = { version = "1.0", features = ["derive"], optional = true }
 context_deserialize = { version = "0.2", optional = true }
+educe = { version = "0.6", optional = true }
 
 [dev-dependencies]
 criterion = "0.7.0"
