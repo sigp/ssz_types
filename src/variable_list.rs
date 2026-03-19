@@ -393,8 +393,7 @@ impl<'a, T: arbitrary::Arbitrary<'a>, N: 'static + Unsigned> arbitrary::Arbitrar
 {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         let max_size = N::to_usize();
-        let rand = usize::arbitrary(u)?;
-        let size = std::cmp::min(rand, max_size);
+        let size = u.arbitrary_len::<T>()?.min(max_size);
         let mut vec: Vec<T> = Vec::with_capacity(size);
         for _ in 0..size {
             vec.push(<T>::arbitrary(u)?);
