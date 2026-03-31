@@ -391,15 +391,16 @@ where
 impl<'a, T: arbitrary::Arbitrary<'a>, N: 'static + Unsigned> arbitrary::Arbitrary<'a>
     for VariableList<T, N>
 {
+    /// Delegate to `Vec<T>`'s `Arbitrary` implementation which prevents a single list
+    /// from being too large.
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        let max_size = N::to_usize();
-        let rand = usize::arbitrary(u)?;
-        let size = std::cmp::min(rand, max_size);
-        let mut vec: Vec<T> = Vec::with_capacity(size);
-        for _ in 0..size {
-            vec.push(<T>::arbitrary(u)?);
-        }
+        let mut vec = <Vec<T>>::arbitrary(u)?;
+        vec.truncate(N::to_usize());
         Self::new(vec).map_err(|_| arbitrary::Error::IncorrectFormat)
+    }
+
+    fn size_hint(depth: usize) -> (usize, Option<usize>) {
+        <Vec<T>>::size_hint(depth)
     }
 }
 
