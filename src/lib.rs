@@ -61,6 +61,10 @@ mod runtime_types;
 #[cfg(feature = "runtime_types")]
 pub use runtime_types::{RuntimeFixedVector, RuntimeVariableList};
 
+mod list_encoded_option;
+
+pub use list_encoded_option::ListEncodedOption;
+
 /// Returned when an item encounters an error.
 #[derive(PartialEq, Debug, Clone)]
 pub enum Error {
