@@ -44,6 +44,7 @@ pub mod length {
 
 #[macro_use]
 mod fixed_vector;
+mod progressive_variable_list;
 mod tree_hash;
 mod variable_list;
 
@@ -51,6 +52,7 @@ mod variable_list;
 mod context_deserialize;
 
 pub use fixed_vector::FixedVector;
+pub use progressive_variable_list::ProgressiveVariableList;
 pub use ssz::{BitList, BitVector, Bitfield};
 pub use typenum;
 pub use variable_list::VariableList;
@@ -64,6 +66,20 @@ pub use runtime_types::{RuntimeFixedVector, RuntimeVariableList};
 mod list_encoded_option;
 
 pub use list_encoded_option::ListEncodedOption;
+
+/// Reinterpret `bytes` as a `Vec<T>`, for the common `T == u8` SSZ fast-path.
+///
+/// Safety: the caller must have verified `TypeId::of::<T>() == TypeId::of::<u8>()`, so that
+/// `Vec<u8>` and `Vec<T>` have identical layout.
+pub(crate) fn u8_bytes_to_vec<T: 'static>(bytes: &[u8]) -> Vec<T> {
+    debug_assert_eq!(
+        core::any::TypeId::of::<T>(),
+        core::any::TypeId::of::<u8>(),
+        "u8_bytes_to_vec called with T != u8",
+    );
+    // Safety: caller verified `T == u8`, so the transmute is a no-op reinterpretation.
+    unsafe { core::mem::transmute::<Vec<u8>, Vec<T>>(bytes.to_vec()) }
+}
 
 /// Returned when an item encounters an error.
 #[derive(PartialEq, Debug, Clone)]

@@ -39,3 +39,8 @@ tree_hash_derive = "0.12.0"
 [[bench]]
 harness = false
 name = "encode_decode"
+
+[patch.crates-io]
+tree_hash = { git = "https://github.com/sigp/tree_hash", branch = "progressive" }
+tree_hash_derive = { git = "https://github.com/sigp/tree_hash", branch = "progressive" }
+ethereum_ssz = { git = "https://github.com/sigp/ethereum_ssz", branch = "progressive" }
