@@ -68,7 +68,7 @@ mod test {
 
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     struct Obj {
-        #[serde(with = "crate::serde_utils::list_of_hex_prog_var_list")]
+        #[serde(with = "crate::serde_utils::prog_list_of_hex_prog_var_list")]
         lists: ProgressiveVariableList<ProgressiveVariableList<u8>>,
     }
 
