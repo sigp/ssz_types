@@ -4,7 +4,6 @@ use serde::Deserialize;
 use serde_derive::Serialize;
 use std::any::TypeId;
 use std::marker::PhantomData;
-use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
 use tree_hash::Hash256;
@@ -313,9 +312,7 @@ where
                 )));
             }
 
-            // Safety: We've verified T is u8, so Vec<T> *is* Vec<u8>.
-            let vec_u8 = bytes.to_vec();
-            let vec_t = unsafe { mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
+            let vec_t = crate::u8_bytes_to_vec(bytes);
             return Self::new(vec_t).map_err(|e| {
                 ssz::DecodeError::BytesInvalid(format!(
                     "Wrong number of VariableList elements: {:?}",
@@ -409,6 +406,7 @@ mod test {
     use super::*;
     use ssz::*;
     use std::collections::HashSet;
+    use std::mem;
     use tree_hash::{merkle_root, TreeHash};
     use tree_hash_derive::TreeHash;
     use typenum::*;

@@ -2,7 +2,6 @@ use crate::tree_hash::progressive_vec_tree_hash_root;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::any::TypeId;
-use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
 use tree_hash::Hash256;
@@ -243,14 +242,18 @@ where
         }
 
         if TypeId::of::<T>() == TypeId::of::<u8>() {
-            // Safety: We've verified T is u8, so Vec<T> *is* Vec<u8>.
-            let vec_u8 = bytes.to_vec();
-            let vec_t = unsafe { mem::transmute::<Vec<u8>, Vec<T>>(vec_u8) };
-            return Ok(Self::new(vec_t));
+            return Ok(Self::new(crate::u8_bytes_to_vec(bytes)));
         }
 
         if T::is_ssz_fixed_len() {
             let item_len = T::ssz_fixed_len();
+            // A zero-length item is a distinct error, matching `VariableList::from_ssz_bytes`.
+            // It also guards the `chunks_exact` below against a zero divisor.
+            bytes
+                .len()
+                .checked_div(item_len)
+                .ok_or(ssz::DecodeError::ZeroLengthItem)?;
+
             if !bytes.len().is_multiple_of(item_len) {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "ProgressiveVariableList has {} bytes, not a multiple of item length {}",

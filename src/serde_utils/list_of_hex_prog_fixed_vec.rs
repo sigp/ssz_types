@@ -2,21 +2,12 @@
 //!
 //! The progressive (EIP-7688) counterpart of [`list_of_hex_fixed_vec`](super::list_of_hex_fixed_vec).
 use crate::{FixedVector, ProgressiveVariableList};
-use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{ser::SerializeSeq, Deserializer, Serializer};
 use std::marker::PhantomData;
 use typenum::Unsigned;
 
-#[derive(Deserialize)]
-#[serde(transparent)]
-pub struct WrappedListOwned<N: Unsigned>(
-    #[serde(with = "crate::serde_utils::hex_fixed_vec")] FixedVector<u8, N>,
-);
-
-#[derive(Serialize)]
-#[serde(transparent)]
-pub struct WrappedListRef<'a, N: Unsigned>(
-    #[serde(with = "crate::serde_utils::hex_fixed_vec")] &'a FixedVector<u8, N>,
-);
+// The element wrappers are identical to the bounded `list_of_hex_fixed_vec`, so reuse them.
+pub use super::list_of_hex_fixed_vec::{WrappedListOwned, WrappedListRef};
 
 pub fn serialize<S, M>(
     list: &ProgressiveVariableList<FixedVector<u8, M>>,

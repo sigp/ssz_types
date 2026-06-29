@@ -7,13 +7,13 @@ use typenum::Unsigned;
 #[derive(Deserialize)]
 #[serde(transparent)]
 pub struct WrappedListOwned<N: Unsigned>(
-    #[serde(with = "crate::serde_utils::hex_fixed_vec")] FixedVector<u8, N>,
+    #[serde(with = "crate::serde_utils::hex_fixed_vec")] pub FixedVector<u8, N>,
 );
 
 #[derive(Serialize)]
 #[serde(transparent)]
 pub struct WrappedListRef<'a, N: Unsigned>(
-    #[serde(with = "crate::serde_utils::hex_fixed_vec")] &'a FixedVector<u8, N>,
+    #[serde(with = "crate::serde_utils::hex_fixed_vec")] pub &'a FixedVector<u8, N>,
 );
 
 pub fn serialize<S, M, N>(
