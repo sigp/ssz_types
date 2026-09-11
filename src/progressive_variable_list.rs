@@ -18,6 +18,10 @@ use tree_hash::Hash256;
 ///
 /// Like `VariableList`, it is backed by a Rust `Vec` and serialized identically to a plain list.
 ///
+/// Known spec divergence: encoding does not enforce the SSZ requirement that the total
+/// encoding be less than 2^32 bytes. Callers must ensure this limit is respected.
+/// Decoding rejects encodings at or above this limit.
+///
 /// ## Example
 ///
 /// ```
@@ -237,6 +241,12 @@ where
     }
 
     fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, ssz::DecodeError> {
+        if bytes.len() > ssz::MAX_LENGTH_VALUE {
+            return Err(ssz::DecodeError::BytesInvalid(
+                "ProgressiveVariableList SSZ encoding must be less than 2^32 bytes".into(),
+            ));
+        }
+
         if bytes.is_empty() {
             return Ok(Self::default());
         }
