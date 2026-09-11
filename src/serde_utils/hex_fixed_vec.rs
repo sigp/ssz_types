@@ -1,4 +1,5 @@
 use crate::FixedVector;
+use alloc::format;
 use serde::{Deserializer, Serializer};
 use serde_utils::hex::{self, PrefixedHexVisitor};
 use typenum::Unsigned;

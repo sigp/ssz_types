@@ -4,13 +4,14 @@
 //!
 //! Quotes can be optional during decoding. If the length of the `Vec` is greater than `N`, deserialization fails.
 
+use alloc::format;
+use core::iter;
+use core::marker::PhantomData;
 use itertools::process_results;
 use serde::ser::SerializeSeq;
 use serde::{de::Error, Deserializer, Serializer};
 use serde_utils::quoted_u64_vec::QuotedIntWrapper;
 use ssz::TryFromIter;
-use std::iter;
-use std::marker::PhantomData;
 
 pub struct QuotedIntVarListVisitor<C> {
     _phantom: PhantomData<C>,
@@ -22,7 +23,7 @@ where
 {
     type Value = C;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(formatter, "a list of quoted or unquoted integers")
     }
 

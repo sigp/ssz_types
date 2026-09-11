@@ -37,6 +37,10 @@
 //!
 //! ```
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
 pub mod serde_utils;
 pub mod length {
     pub use ssz::{Fixed, Variable};
@@ -117,8 +121,8 @@ impl core::error::Error for Error {}
 /// `TryFrom` impl for `From` types uses `Infallible` as the error.
 ///
 /// See: https://doc.rust-lang.org/std/convert/trait.TryFrom.html#generic-implementations
-impl From<std::convert::Infallible> for Error {
-    fn from(e: std::convert::Infallible) -> Self {
+impl From<core::convert::Infallible> for Error {
+    fn from(e: core::convert::Infallible) -> Self {
         match e {}
     }
 }

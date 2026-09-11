@@ -1,7 +1,8 @@
 //! Serialize `VaraibleList<VariableList<u8, M>, N>` as list of 0x-prefixed hex string.
 use crate::VariableList;
+use alloc::format;
+use core::marker::PhantomData;
 use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
-use std::marker::PhantomData;
 use typenum::Unsigned;
 
 #[derive(Deserialize)]
@@ -45,7 +46,7 @@ where
 {
     type Value = VariableList<VariableList<u8, M>, N>;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(formatter, "a list of 0x-prefixed hex bytes")
     }
 

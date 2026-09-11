@@ -2,8 +2,14 @@
 //!
 //! The length of the list cannot be changed once it is set.
 
-use std::fmt;
-use std::fmt::Debug;
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt;
+use core::fmt::Debug;
 
 #[derive(Clone)]
 pub struct RuntimeFixedVector<T> {
@@ -48,7 +54,7 @@ impl<T: Clone + Default> RuntimeFixedVector<T> {
     }
 
     pub fn take(&mut self) -> Self {
-        let new = std::mem::take(&mut self.vec);
+        let new = core::mem::take(&mut self.vec);
         *self = Self::new(vec![T::default(); self.len]);
         Self {
             vec: new,
@@ -57,7 +63,7 @@ impl<T: Clone + Default> RuntimeFixedVector<T> {
     }
 }
 
-impl<T> std::ops::Deref for RuntimeFixedVector<T> {
+impl<T> core::ops::Deref for RuntimeFixedVector<T> {
     type Target = [T];
 
     fn deref(&self) -> &[T] {
@@ -65,7 +71,7 @@ impl<T> std::ops::Deref for RuntimeFixedVector<T> {
     }
 }
 
-impl<T> std::ops::DerefMut for RuntimeFixedVector<T> {
+impl<T> core::ops::DerefMut for RuntimeFixedVector<T> {
     fn deref_mut(&mut self) -> &mut [T] {
         &mut self.vec[..]
     }
@@ -73,7 +79,7 @@ impl<T> std::ops::DerefMut for RuntimeFixedVector<T> {
 
 impl<T> IntoIterator for RuntimeFixedVector<T> {
     type Item = T;
-    type IntoIter = std::vec::IntoIter<T>;
+    type IntoIter = alloc::vec::IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.vec.into_iter()
@@ -82,7 +88,7 @@ impl<T> IntoIterator for RuntimeFixedVector<T> {
 
 impl<'a, T> IntoIterator for &'a RuntimeFixedVector<T> {
     type Item = &'a T;
-    type IntoIter = std::slice::Iter<'a, T>;
+    type IntoIter = core::slice::Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.vec.iter()

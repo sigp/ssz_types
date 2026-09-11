@@ -1,5 +1,6 @@
 //! Serialize `VariableList<u8, N>` as 0x-prefixed hex string.
 use crate::VariableList;
+use alloc::format;
 use serde::{Deserializer, Serializer};
 use serde_utils::hex::{self, PrefixedHexVisitor};
 use typenum::Unsigned;

@@ -11,20 +11,22 @@ keywords = ["ethereum"]
 categories = ["cryptography::cryptocurrencies"]
 
 [features]
-default = ["ring"]
+default = ["std", "ring"]
+std = ["tree_hash/std", "ethereum_ssz/std", "ethereum_serde_utils/std", "serde/std", "itertools/use_std"]
 ring = ["tree_hash/ring"]
+sha2 = ["tree_hash/sha2"]
 runtime_types = ["dep:educe"]
 context_deserialize = ["dep:context_deserialize"]
 
 [dependencies]
 tree_hash = { version = "0.12.0", default-features = false }
-ethereum_serde_utils = "0.8.0"
-ethereum_ssz = "0.10.0"
-serde = "1.0.0"
+ethereum_serde_utils = { version = "0.8.0", default-features = false }
+ethereum_ssz = { version = "0.10.0", default-features = false }
+serde = { version = "1.0.0", default-features = false, features = ["alloc"] }
 serde_derive = "1.0.0"
-typenum = "1.12.0"
-smallvec = "1.8.0"
-itertools = "0.14.0"
+typenum = { version = "1.12.0", default-features = false }
+smallvec = { version = "1.8.0", default-features = false }
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
 
 # Optional dependencies
 arbitrary = { version = "1.0", features = ["derive"], optional = true }
@@ -39,3 +41,11 @@ tree_hash_derive = "0.12.0"
 [[bench]]
 harness = false
 name = "encode_decode"
+
+[patch.crates-io]
+tree_hash = { path = "../tree_hash/tree_hash" }
+tree_hash_derive = { path = "../tree_hash/tree_hash_derive" }
+ethereum_ssz = { path = "../ethereum_ssz/ssz" }
+ethereum_ssz_derive = { path = "../ethereum_ssz/ssz_derive" }
+ethereum_serde_utils = { path = "../ethereum_serde_utils" }
+ethereum_hashing = { path = "../ethereum_hashing" }

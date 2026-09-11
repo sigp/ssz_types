@@ -1,9 +1,10 @@
 use crate::tree_hash::vec_tree_hash_root;
 use crate::VariableList;
+use alloc::vec::Vec;
+use core::ops::{Deref, DerefMut};
 use serde_derive::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use ssz::{Decode, DecodeError, Encode};
-use std::ops::{Deref, DerefMut};
 use tree_hash::{Hash256, PackedEncoding, TreeHash, TreeHashType};
 use typenum::U1;
 
@@ -88,7 +89,7 @@ impl<T: TreeHash> TreeHash for ListEncodedOption<T> {
 
     fn tree_hash_root(&self) -> Hash256 {
         let slice: &[T] = match &self.0 {
-            Some(val) => std::slice::from_ref(val),
+            Some(val) => core::slice::from_ref(val),
             None => &[],
         };
         let root = vec_tree_hash_root::<T>(slice, 1);

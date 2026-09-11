@@ -1,4 +1,10 @@
 use crate::{typenum::Unsigned, FixedVector};
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use context_deserialize::ContextDeserialize;
 use serde::de::{Deserializer, Error};
 
