@@ -80,7 +80,7 @@ impl<T: std::fmt::Debug, N> std::fmt::Debug for VariableList<T, N> {
 /// in memory. This value is set to 128K with the expectation that any list with a large maximum
 /// length (N) will contain at least a few thousand small values. i.e. we're targeting an
 /// allocation around the 1MiB to 10MiB mark.
-const MAX_ELEMENTS_TO_PRE_ALLOCATE: usize = 128 * (1 << 10);
+pub(crate) const MAX_ELEMENTS_TO_PRE_ALLOCATE: usize = 128 * (1 << 10);
 
 impl<T, N: Unsigned> VariableList<T, N> {
     /// Returns `Some` if the given `vec` equals the fixed length of `Self`. Otherwise returns
