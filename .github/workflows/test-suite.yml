@@ -27,7 +27,7 @@ jobs:
     - name: Get latest version of stable Rust
       run: rustup update stable
     - name: Check code quality with cargo clippy
-      run: cargo clippy --all --all-features -- --deny warnings
+      run: cargo clippy --all --all-features --all-targets -- --deny warnings
   test:
     strategy:
       matrix:
@@ -40,6 +40,17 @@ jobs:
       run: rustup update stable
     - name: Run tests
       run: cargo test --release --all-features
+  spec-tests:
+    name: ssz-spec-tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v3
+    - name: Get latest version of stable Rust
+      run: rustup update stable
+    - name: Run pinned SSZ specification tests
+      run: make -C testing/spec test
   miri:
     runs-on: ubuntu-latest
     steps:
@@ -58,7 +69,7 @@ jobs:
     - name: Install cargo-tarpaulin
       uses: taiki-e/install-action@cargo-tarpaulin
     - name: Check code coverage with cargo-tarpaulin
-      run: cargo-tarpaulin --workspace --all-features --out xml
+      run: cargo-tarpaulin --workspace --exclude ssz_spec_tests --all-features --out xml
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4
       with:

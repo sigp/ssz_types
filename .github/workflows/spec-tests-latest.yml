@@ -1,0 +1,28 @@
+name: latest-ssz-spec-tests
+
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spec-tests-latest:
+    name: latest-ssz-spec-tests
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-D warnings"
+    steps:
+    - uses: actions/checkout@v3
+    - name: Get latest version of stable Rust
+      run: rustup update stable
+    - name: Run latest released SSZ specification tests
+      shell: bash
+      run: |
+        # /releases/latest redirects to /releases/tag/<latest tag>.
+        url="$(curl -fsSL -o /dev/null -w '%{url_effective}' https://github.com/ethereum/ssz-specs/releases/latest)"
+        tag="${url##*/}"
+        sha256="$(curl -fsSL "https://github.com/ethereum/ssz-specs/releases/download/$tag/ssz-test-vectors-$tag.tar.gz.sha256" | cut -d ' ' -f 1)"
+        make -C testing/spec test RELEASE="$tag" SHA256="$sha256"

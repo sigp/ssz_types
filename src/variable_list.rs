@@ -697,7 +697,7 @@ mod test {
         type N = U1099511627776;
         type List = VariableList<u64, N>;
 
-        let iter = iter::repeat(1).take(5);
+        let iter = iter::repeat_n(1, 5);
         let wonky_iter = WonkyIterator {
             hint: N::to_usize() / 2,
             iter: iter.clone(),
@@ -748,8 +748,9 @@ mod test {
         assert_eq!(debug_output, "[1, 2, 3]");
     }
 
-    // This tests the `From<Infallible>` impl for `Error`.
+    // This tests the `From<Infallible>` impl for `Error`, so the conversion must stay fallible.
     #[test]
+    #[allow(clippy::unnecessary_fallible_conversions)]
     fn error_from_infallible() {
         let result: Result<Vec<u64>, Error> =
             Vec::try_from(VariableList::<u64, U5>::repeat_full(6)).map_err(Into::into);
