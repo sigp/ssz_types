@@ -8,11 +8,12 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
 use tree_hash::Hash256;
-use typenum::{Shleft, Sub1, Unsigned, U1, U64};
+use typenum::{Double, Sub1, Unsigned, U9223372036854775808};
 
 /// `u64::MAX` as a [`typenum`] number. Used to disable length limits for
 /// [`ProgressiveVariableList`].
-pub type NoLimit = Sub1<Shleft<U1, U64>>;
+// (2^63 * 2) - 1 = 2^64 - 1 = u64::MAX
+pub type NoLimit = Sub1<Double<U9223372036854775808>>;
 
 /// Emulates a SSZ `ProgressiveList` (EIP-7916).
 ///
