@@ -52,7 +52,7 @@ mod variable_list;
 mod context_deserialize;
 
 pub use fixed_vector::FixedVector;
-pub use progressive_variable_list::ProgressiveVariableList;
+pub use progressive_variable_list::{NoLimit, ProgressiveVariableList};
 pub use ssz::{BitList, BitVector, Bitfield};
 pub use typenum;
 pub use variable_list::VariableList;
