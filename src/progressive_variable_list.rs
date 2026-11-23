@@ -1,6 +1,6 @@
-use crate::Error;
 use crate::tree_hash::progressive_vec_tree_hash_root;
 use crate::variable_list::MAX_ELEMENTS_TO_PRE_ALLOCATE;
+use crate::Error;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::any::TypeId;
@@ -429,7 +429,7 @@ mod test {
     use super::*;
     use ssz::{Decode, Encode, TryFromIter};
     use tree_hash::TreeHash;
-    use typenum::{U0, U4, U256};
+    use typenum::{U0, U256, U4};
 
     #[test]
     fn new_and_push_unbounded() {
