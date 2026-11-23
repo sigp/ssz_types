@@ -8,7 +8,33 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
 use tree_hash::Hash256;
-use typenum::{Unsigned, U0};
+use typenum::Unsigned;
+
+/// Expands to the [`typenum`] number with the given binary digits, most significant first.
+/// For example, `uint!(1 0 1)` is `U5`.
+///
+/// These literals are much faster to compile than numbers constructed via type-level arith.
+macro_rules! uint {
+    // Wrap the number so far in one `UInt<_, B0>` or `UInt<_, B1>` per digit.
+    (@wrap $acc:ty;) => { $acc };
+    (@wrap $acc:ty; 0 $($rest:tt)*) => {
+        uint!(@wrap typenum::UInt<$acc, typenum::B0>; $($rest)*)
+    };
+    (@wrap $acc:ty; 1 $($rest:tt)*) => {
+        uint!(@wrap typenum::UInt<$acc, typenum::B1>; $($rest)*)
+    };
+    // The first digit must be 1, because typenum numbers have no leading zeros.
+    (1 $($rest:tt)*) => { uint!(@wrap typenum::UInt<typenum::UTerm, typenum::B1>; $($rest)*) };
+}
+
+/// `u64::MAX` as a [`typenum`] number. Used to disable length limits for
+/// [`ProgressiveVariableList`].
+pub type NoLimit = uint!(
+    1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1
+    1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1
+);
+
+const _: () = assert!(NoLimit::U64 == u64::MAX);
 
 /// Emulates a SSZ `ProgressiveList` (EIP-7916).
 ///
@@ -17,12 +43,12 @@ use typenum::{Unsigned, U0};
 ///
 /// - Merkleization uses the progressive scheme of EIP-7916 (a right-leaning spine of binary
 ///   subtrees whose capacities grow by 4x), so the hash tree root is independent of any limit.
-/// - The length limit `N` is optional. A non-zero limit is enforced on construction and mutation.
+/// - The length limit `N` is optional. If set, it is checked whenever the list is created or grows.
 ///
-/// The type parameter `N` is a [`typenum`] unsigned integer. The default `U0` means no limit, so
-/// the list can have any length. SSZ decoding rejects inputs with more than `N` elements for a
-/// non-zero `N` before allocating space for them. The limit does not change the SSZ encoding or the
-/// hash tree root. You can add or change it on a field without a consensus change.
+/// `N` is a [`typenum`] number. The default, [`NoLimit`], allows any length. Any other value is a
+/// limit. SSZ decoding checks the limit before it allocates memory for the items. The limit does
+/// not change the SSZ encoding or the hash tree root, so you can add or change it on a field
+/// without a consensus change.
 ///
 /// Like `VariableList`, the list is backed by a Rust `Vec` and serialized identically to a plain
 /// list.
@@ -54,7 +80,7 @@ use typenum::{Unsigned, U0};
 /// ```
 #[derive(Clone, Serialize)]
 #[serde(transparent)]
-pub struct ProgressiveVariableList<T, N = U0> {
+pub struct ProgressiveVariableList<T, N = NoLimit> {
     vec: Vec<T>,
     #[serde(skip)]
     _phantom: PhantomData<N>,
@@ -139,12 +165,10 @@ impl<T, N: Unsigned> ProgressiveVariableList<T, N> {
         Ok(())
     }
 
-    /// Returns the optional length limit.
-    ///
-    /// `None` means no limit (`N = U0`). `Some(n)` rejects any input with more than `n` elements.
+    /// Returns the length limit, or `None` if there is no limit (`N = NoLimit`).
     pub fn max_len() -> Option<usize> {
         match N::to_usize() {
-            0 => None,
+            usize::MAX => None,
             n => Some(n),
         }
     }
@@ -405,7 +429,7 @@ mod test {
     use super::*;
     use ssz::{Decode, Encode, TryFromIter};
     use tree_hash::TreeHash;
-    use typenum::{U256, U4};
+    use typenum::{U0, U256, U4};
 
     #[test]
     fn new_and_push_unbounded() {
@@ -443,6 +467,20 @@ mod test {
                 .len(),
             5
         );
+    }
+
+    #[test]
+    fn zero_limit_permits_only_the_empty_list() {
+        type Empty = ProgressiveVariableList<u64, U0>;
+        let err = Error::OutOfBounds { i: 1, len: 0 };
+        assert_eq!(Empty::new(vec![1]), Err(err.clone()));
+        assert_eq!(Empty::empty().push(1), Err(err));
+
+        let one_item = ProgressiveVariableList::<u64>::new(vec![1])
+            .unwrap()
+            .as_ssz_bytes();
+        assert!(Empty::from_ssz_bytes(&[]).unwrap().is_empty());
+        assert!(Empty::from_ssz_bytes(&one_item).is_err());
     }
 
     #[test]
@@ -531,9 +569,26 @@ mod test {
     }
 
     #[test]
+    fn uint_macro_reads_binary_digits() {
+        use typenum::{U1, U5, U6};
+        let _: PhantomData<U1> = PhantomData::<uint!(1)>;
+        let _: PhantomData<U5> = PhantomData::<uint!(1 0 1)>;
+        let _: PhantomData<U6> = PhantomData::<uint!(1 1 0)>;
+    }
+
+    #[test]
+    fn no_limit_matches_typenum_arithmetic() {
+        use typenum::{Double, Sub1, U9223372036854775808};
+        // Compiles only if the literal is the exact type that typenum arithmetic produces.
+        let _: PhantomData<NoLimit> = PhantomData::<Sub1<Double<U9223372036854775808>>>;
+        assert_eq!(NoLimit::to_u64(), u64::MAX);
+    }
+
+    #[test]
     fn max_len_reports_optional_limit() {
         assert_eq!(ProgressiveVariableList::<u64>::max_len(), None);
         assert_eq!(ProgressiveVariableList::<u64, U4>::max_len(), Some(4));
+        assert_eq!(ProgressiveVariableList::<u64, U0>::max_len(), Some(0));
     }
 
     #[test]
