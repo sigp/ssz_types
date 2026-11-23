@@ -1,6 +1,6 @@
+use crate::Error;
 use crate::tree_hash::progressive_vec_tree_hash_root;
 use crate::variable_list::MAX_ELEMENTS_TO_PRE_ALLOCATE;
-use crate::Error;
 use serde::Deserialize;
 use serde_derive::Serialize;
 use std::any::TypeId;
@@ -8,12 +8,33 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::slice::SliceIndex;
 use tree_hash::Hash256;
-use typenum::{Double, Sub1, Unsigned, U9223372036854775808};
+use typenum::Unsigned;
+
+/// Expands to the [`typenum`] number with the given binary digits, most significant first.
+/// For example, `uint!(1 0 1)` is `U5`.
+///
+/// These literals are much faster to compile than numbers constructed via type-level arith.
+macro_rules! uint {
+    // Wrap the number so far in one `UInt<_, B0>` or `UInt<_, B1>` per digit.
+    (@wrap $acc:ty;) => { $acc };
+    (@wrap $acc:ty; 0 $($rest:tt)*) => {
+        uint!(@wrap typenum::UInt<$acc, typenum::B0>; $($rest)*)
+    };
+    (@wrap $acc:ty; 1 $($rest:tt)*) => {
+        uint!(@wrap typenum::UInt<$acc, typenum::B1>; $($rest)*)
+    };
+    // The first digit must be 1, because typenum numbers have no leading zeros.
+    (1 $($rest:tt)*) => { uint!(@wrap typenum::UInt<typenum::UTerm, typenum::B1>; $($rest)*) };
+}
 
 /// `u64::MAX` as a [`typenum`] number. Used to disable length limits for
 /// [`ProgressiveVariableList`].
-// (2^63 * 2) - 1 = 2^64 - 1 = u64::MAX
-pub type NoLimit = Sub1<Double<U9223372036854775808>>;
+pub type NoLimit = uint!(
+    1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1
+    1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1  1 1 1 1 1 1 1 1
+);
+
+const _: () = assert!(NoLimit::U64 == u64::MAX);
 
 /// Emulates a SSZ `ProgressiveList` (EIP-7916).
 ///
@@ -408,7 +429,7 @@ mod test {
     use super::*;
     use ssz::{Decode, Encode, TryFromIter};
     use tree_hash::TreeHash;
-    use typenum::{U0, U256, U4};
+    use typenum::{U0, U4, U256};
 
     #[test]
     fn new_and_push_unbounded() {
@@ -545,6 +566,22 @@ mod test {
         ssz_round_trip::<ProgressiveVariableList<u64>>(
             ProgressiveVariableList::new(vec![42; 9]).unwrap(),
         );
+    }
+
+    #[test]
+    fn uint_macro_reads_binary_digits() {
+        use typenum::{U1, U5, U6};
+        let _: PhantomData<U1> = PhantomData::<uint!(1)>;
+        let _: PhantomData<U5> = PhantomData::<uint!(1 0 1)>;
+        let _: PhantomData<U6> = PhantomData::<uint!(1 1 0)>;
+    }
+
+    #[test]
+    fn no_limit_matches_typenum_arithmetic() {
+        use typenum::{Double, Sub1, U9223372036854775808};
+        // Compiles only if the literal is the exact type that typenum arithmetic produces.
+        let _: PhantomData<NoLimit> = PhantomData::<Sub1<Double<U9223372036854775808>>>;
+        assert_eq!(NoLimit::to_u64(), u64::MAX);
     }
 
     #[test]
