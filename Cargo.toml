@@ -10,6 +10,9 @@ documentation = "https://docs.rs/ssz_types"
 keywords = ["ethereum"]
 categories = ["cryptography::cryptocurrencies"]
 
+[workspace]
+members = ["testing/spec"]
+
 [features]
 default = ["ring"]
 ring = ["tree_hash/ring"]
@@ -44,3 +47,4 @@ name = "encode_decode"
 tree_hash = { git = "https://github.com/sigp/tree_hash", branch = "progressive" }
 tree_hash_derive = { git = "https://github.com/sigp/tree_hash", branch = "progressive" }
 ethereum_ssz = { git = "https://github.com/sigp/ethereum_ssz", branch = "progressive" }
+ethereum_ssz_derive = { git = "https://github.com/sigp/ethereum_ssz", branch = "progressive" }

@@ -1,0 +1,22 @@
+[package]
+name = "ssz_spec_tests"
+edition = "2021"
+publish = false
+
+# One test per fixture file; see tests/spec/main.rs.
+[[test]]
+name = "spec"
+harness = false
+
+[dev-dependencies]
+alloy-primitives = "1"
+ethereum_ssz = "0.10"
+ethereum_ssz_derive = "0.10"
+hex = "0.4"
+libtest-mimic = "0.8"
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+ssz_types = { path = "../.." }
+tree_hash = "0.12"
+tree_hash_derive = "0.12"
